@@ -173,7 +173,7 @@ export function addMessage(text, sender, isMe) {
   
   const textDiv = document.createElement('div');
   textDiv.className = 'msg-text';
-  textDiv.innerText = text;
+  textDiv.innerHTML = parseDiscordMarkdown(text);
   
   block.appendChild(meta);
   block.appendChild(textDiv);
@@ -181,6 +181,116 @@ export function addMessage(text, sender, isMe) {
   
   scrollToBottom();
 }
+
+/**
+ * Escapes HTML characters to prevent XSS injection.
+ * @param {string} str
+ * @returns {string}
+ */
+function escapeHTML(str) {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+/**
+ * Parses Discord-style markdown and emoji shorthands into safe HTML.
+ * @param {string} text
+ * @returns {string}
+ */
+function parseDiscordMarkdown(text) {
+  let escaped = escapeHTML(text);
+  const placeholders = [];
+
+  // Extract multiline code blocks (```code```)
+  escaped = escaped.replace(/```([\s\S]*?)```/g, (match, code) => {
+    const id = `{{CODE_BLOCK_${placeholders.length}}}`;
+    const cleanCode = code.replace(/^\n/, '').replace(/\n$/, '');
+    placeholders.push(`<pre><code>${cleanCode}</code></pre>`);
+    return id;
+  });
+
+  // Extract inline code (`code`)
+  escaped = escaped.replace(/`([^`]+)`/g, (match, code) => {
+    const id = `{{CODE_BLOCK_${placeholders.length}}}`;
+    placeholders.push(`<code>${code}</code>`);
+    return id;
+  });
+
+  // Blockquotes (starts with > )
+  let lines = escaped.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].startsWith('&gt; ')) {
+      lines[i] = `<blockquote>${lines[i].substring(5)}</blockquote>`;
+    }
+  }
+  escaped = lines.join('\n');
+
+  // Formatting (bold, italic, underline, strikethrough, spoiler)
+  escaped = escaped
+    .replace(/\*\*\*([^\*]+)\*\*\*/g, '<strong><em>$1</em></strong>')
+    .replace(/\*\*([^\*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*([^\*]+)\*/g, '<em>$1</em>')
+    .replace(/_([^_]+)_/g, '<em>$1</em>')
+    .replace(/__([^_]+)__/g, '<u>$1</u>')
+    .replace(/~~([^~]+)~~/g, '<del>$1</del>')
+    .replace(/\|\|([^|]+)\|\|/g, '<span class="spoiler" onclick="this.classList.toggle(\'revealed\')">$1</span>');
+
+  // Emoji and text smiley map
+  const emojiMap = {
+    ':smile:': '😄',
+    ':heart:': '❤️',
+    ':thumbsup:': '👍',
+    ':thumbsdown:': '👎',
+    ':fire:': '🔥',
+    ':rocket:': '🚀',
+    ':cry:': '😢',
+    ':wink:': '😉',
+    ':tada:': '🎉',
+    ':eyes:': '👀',
+    ':thinking:': '🤔',
+    ':ok_hand:': '👌',
+    ':clap:': '👏',
+    ':100:': '💯',
+    ':skull:': '💀',
+    ':grin:': '😁',
+    ':joy:': '😂',
+    ':sob:': '😭',
+    ':rage:': '😡',
+    ':scream:': '😱',
+    ':poop:': '💩',
+    ':check:': '✅',
+    ':cross:': '❌',
+    ':warning:': '⚠️',
+    ':party:': '🥳',
+    ':sweat_smile:': '😅',
+    ':laughing:': '😆',
+    ':wave:': '👋',
+    ':D': '😃',
+    ':)': '🙂',
+    ':(': '🙁',
+    ';)': '😉',
+    '<3': '❤️'
+  };
+
+  // Convert emoji codes
+  for (const [short, emoji] of Object.entries(emojiMap)) {
+    const escShort = short.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    const regex = new RegExp(escShort, 'g');
+    escaped = escaped.replace(regex, emoji);
+  }
+
+  // Restore code block placeholders
+  for (let i = 0; i < placeholders.length; i++) {
+    escaped = escaped.replace(`{{CODE_BLOCK_${i}}}`, placeholders[i]);
+  }
+
+  return escaped;
+}
+
 
 /**
  * Appends system notifications inside chat timeline.

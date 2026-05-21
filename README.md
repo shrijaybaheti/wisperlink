@@ -35,38 +35,6 @@ sequenceDiagram
 
 ---
 
-## 💻 Local Development
-
-To run the project locally, serve the directory contents using any static file server:
-
-```bash
-# Example using Node's serve:
-npx serve -l 8080
-```
-
-Open `http://localhost:8080` in your web browser.
-
----
-
-## 🌐 Deploy to GitHub Pages
-
-Since `whisperlink` is 100% static, it can be hosted on GitHub Pages:
-
-1. Create a **new public/private repository** on GitHub.
-2. Link your local project:
-   ```bash
-   git init
-   git add .
-   git commit -m "Initial commit of whisperlink"
-   git branch -M main
-   git remote add origin <your-github-repo-url>
-   git push -u origin main
-   ```
-3. Go to your repository settings on GitHub, navigate to **Pages**, and set the source branch to `main`.
-4. Your secure serverless chat will be live at `https://<username>.github.io/<repo-name>/`.
-
----
-
 ## 🔒 Cryptographic Architecture
 
 1. **Key Generation**: Every peer generates a new, ephemeral ECDH keypair (elliptic curve P-256) on startup.
