@@ -54,7 +54,10 @@ export const elements = {
   emojiPickerGrid: document.getElementById('emoji-picker-grid'),
   emojiAutocomplete: document.getElementById('emoji-autocomplete'),
   
-  toastOverlay: document.getElementById('toast-overlay')
+  toastOverlay: document.getElementById('toast-overlay'),
+  btnMobileMenu: document.getElementById('btn-mobile-menu'),
+  mobileSidebarBackdrop: document.getElementById('mobile-sidebar-backdrop'),
+  panelSidebar: document.querySelector('.panel-sidebar')
 };
 
 /**
@@ -649,4 +652,124 @@ export function initEmojiAutocomplete() {
       activeIndex = 0;
     }
   });
+}
+
+/**
+ * Appends a file progress bubble to the chat timeline.
+ * @param {string} fileId
+ * @param {string} filename
+ * @param {string} filetype
+ * @param {number} filesize
+ * @param {string} sender
+ * @param {boolean} isMe
+ */
+export function addFileProgressMessage(fileId, filename, filetype, filesize, sender, isMe) {
+  const block = document.createElement('div');
+  block.className = `msg-block ${isMe ? 'me' : 'peer'}`;
+  
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  
+  const meta = document.createElement('div');
+  meta.className = 'msg-meta';
+  meta.innerText = `${sender} [${timeStr}]`;
+  
+  const textDiv = document.createElement('div');
+  textDiv.className = 'msg-text file-msg';
+  textDiv.id = `file-msg-text-${fileId}`;
+  
+  let sizeStr = '';
+  if (filesize < 1024) sizeStr = `${filesize} B`;
+  else if (filesize < 1024 * 1024) sizeStr = `${(filesize / 1024).toFixed(1)} KB`;
+  else sizeStr = `${(filesize / (1024 * 1024)).toFixed(1)} MB`;
+  
+  textDiv.innerHTML = `
+    <div class="file-info-row progress-row" id="file-progress-${fileId}">
+      <span class="file-icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5a2.5 2.5 0 0 1 5 0v10.5c0 .83-.67 1.5-1.5 1.5s-1.5-.67-1.5-1.5V6H9v9.5a3 3 0 0 0 6 0V5a4 4 0 0 0-8 0v12.5a5.5 5.5 0 0 0 11 0V6h-1.5z"/></svg></span>
+      <div class="file-details" style="flex: 1; overflow: hidden;">
+        <span class="file-name" style="display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHTML(filename)}</span>
+        <span class="file-size progress-text" style="font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-secondary); margin-top: 0.1rem; display: block;">0% of ${sizeStr}</span>
+        <div class="file-progress-bar-container">
+          <div class="file-progress-bar" style="width: 0%;"></div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  block.appendChild(meta);
+  block.appendChild(textDiv);
+  elements.chatMessages.appendChild(block);
+  
+  scrollToBottom();
+}
+
+/**
+ * Updates an active file transfer progress bar.
+ * @param {string} fileId
+ * @param {number} progressPercent
+ * @param {string} speedText
+ */
+export function updateFileProgress(fileId, progressPercent, speedText) {
+  const container = document.getElementById(`file-progress-${fileId}`);
+  if (!container) return;
+  const bar = container.querySelector('.file-progress-bar');
+  const text = container.querySelector('.progress-text');
+  if (bar) {
+    bar.style.width = `${progressPercent}%`;
+  }
+  if (text) {
+    text.innerText = `${progressPercent}%${speedText ? ` (${speedText})` : ''}`;
+  }
+}
+
+/**
+ * Replaces progress UI with final download button and optional image preview.
+ * @param {string} fileId
+ * @param {string} filename
+ * @param {string} filetype
+ * @param {number} filesize
+ * @param {string} dataUrl
+ */
+export function completeFileProgress(fileId, filename, filetype, filesize, dataUrl) {
+  const textDiv = document.getElementById(`file-msg-text-${fileId}`);
+  if (!textDiv) return;
+  
+  textDiv.innerHTML = '';
+  
+  let sizeStr = '';
+  if (filesize < 1024) sizeStr = `${filesize} B`;
+  else if (filesize < 1024 * 1024) sizeStr = `${(filesize / 1024).toFixed(1)} KB`;
+  else sizeStr = `${(filesize / (1024 * 1024)).toFixed(1)} MB`;
+  
+  if (filetype.startsWith('image/')) {
+    const img = document.createElement('img');
+    img.src = dataUrl;
+    img.className = 'chat-image-preview';
+    img.alt = filename;
+    textDiv.appendChild(img);
+  }
+  
+  const fileInfo = document.createElement('div');
+  fileInfo.className = 'file-info-row';
+  
+  const icon = document.createElement('span');
+  icon.className = 'file-icon';
+  icon.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5a2.5 2.5 0 0 1 5 0v10.5c0 .83-.67 1.5-1.5 1.5s-1.5-.67-1.5-1.5V6H9v9.5a3 3 0 0 0 6 0V5a4 4 0 0 0-8 0v12.5a5.5 5.5 0 0 0 11 0V6h-1.5z"/></svg>`;
+  
+  const details = document.createElement('div');
+  details.className = 'file-details';
+  details.innerHTML = `<span class="file-name">${escapeHTML(filename)}</span><span class="file-size">${sizeStr}</span>`;
+  
+  const dlBtn = document.createElement('a');
+  dlBtn.href = dataUrl;
+  dlBtn.download = filename;
+  dlBtn.className = 'btn-download';
+  dlBtn.innerText = 'Download';
+  
+  fileInfo.appendChild(icon);
+  fileInfo.appendChild(details);
+  fileInfo.appendChild(dlBtn);
+  textDiv.appendChild(fileInfo);
+  
+  scrollToBottom();
 }

@@ -140,3 +140,58 @@ export async function decrypt(sharedKey, combinedBase64) {
   
   return new TextDecoder().decode(decrypted);
 }
+
+/**
+ * Encrypts an ArrayBuffer using the shared AES-GCM key.
+ * @param {CryptoKey} sharedKey
+ * @param {ArrayBuffer} arrayBuffer
+ * @returns {Promise<string>} Base64 combined [IV + ciphertext]
+ */
+export async function encryptBinary(sharedKey, arrayBuffer) {
+  const iv = window.crypto.getRandomValues(new Uint8Array(12));
+  const ciphertext = await window.crypto.subtle.encrypt(
+    {
+      name: "AES-GCM",
+      iv: iv
+    },
+    sharedKey,
+    arrayBuffer
+  );
+  
+  const combined = new Uint8Array(iv.length + ciphertext.byteLength);
+  combined.set(iv, 0);
+  combined.set(new Uint8Array(ciphertext), iv.length);
+  
+  let binary = '';
+  for (let i = 0; i < combined.byteLength; i++) {
+    binary += String.fromCharCode(combined[i]);
+  }
+  return btoa(binary);
+}
+
+/**
+ * Decrypts a combined IV + ciphertext Base64 string using the shared AES-GCM key.
+ * @param {CryptoKey} sharedKey
+ * @param {string} combinedBase64
+ * @returns {Promise<ArrayBuffer>} Decrypted binary data
+ */
+export async function decryptBinary(sharedKey, combinedBase64) {
+  const binary = atob(combinedBase64);
+  const combined = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    combined[i] = binary.charCodeAt(i);
+  }
+  
+  const iv = combined.slice(0, 12);
+  const ciphertext = combined.slice(12);
+  
+  return await window.crypto.subtle.decrypt(
+    {
+      name: "AES-GCM",
+      iv: iv
+    },
+    sharedKey,
+    ciphertext
+  );
+}
+

@@ -11,6 +11,7 @@
 <body>
 
   <div id="app">
+    <div id="mobile-sidebar-backdrop" class="mobile-sidebar-backdrop"></div>
     
     <!-- LANDING VIEW (Overlay Console) -->
     <section id="view-landing" class="view active">
@@ -138,9 +139,16 @@
     <!-- Right Main Panel -->
     <main class="panel-main">
       <header class="chat-header">
-        <div class="chat-room-info">
-          <span class="chat-room-name" id="chat-room-name">Session Offline</span>
-          <span class="chat-room-meta" id="chat-room-security">SECURE P2P NODE</span>
+        <div style="display: flex; align-items: center;">
+          <button class="btn-icon btn-mobile-menu" id="btn-mobile-menu" title="Toggle Menu" style="display: none; margin-right: 0.75rem; padding: 0.5rem; background: var(--bg-surface-hover); border-radius: 6px; border: 1px solid var(--border-color); color: var(--text-primary);">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+              <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/>
+            </svg>
+          </button>
+          <div class="chat-room-info">
+            <span class="chat-room-name" id="chat-room-name">Session Offline</span>
+            <span class="chat-room-meta" id="chat-room-security">SECURE P2P NODE</span>
+          </div>
         </div>
         <button class="btn-console" id="btn-disconnect">Disconnect</button>
       </header>
