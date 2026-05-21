@@ -195,3 +195,118 @@ export async function decryptBinary(sharedKey, combinedBase64) {
   );
 }
 
+/**
+ * Encrypts an ArrayBuffer using the shared AES-GCM key and returns raw results.
+ * @param {CryptoKey} sharedKey
+ * @param {ArrayBuffer} arrayBuffer
+ * @returns {Promise<{ iv: Uint8Array, ciphertext: ArrayBuffer }>}
+ */
+export async function encryptBinaryRaw(sharedKey, arrayBuffer) {
+  const iv = window.crypto.getRandomValues(new Uint8Array(12));
+  const ciphertext = await window.crypto.subtle.encrypt(
+    {
+      name: "AES-GCM",
+      iv: iv
+    },
+    sharedKey,
+    arrayBuffer
+  );
+  return { iv, ciphertext };
+}
+
+/**
+ * Decrypts a raw IV and ciphertext using the shared AES-GCM key.
+ * @param {CryptoKey} sharedKey
+ * @param {Uint8Array} iv
+ * @param {Uint8Array} ciphertext
+ * @returns {Promise<ArrayBuffer>}
+ */
+export async function decryptBinaryRaw(sharedKey, iv, ciphertext) {
+  return await window.crypto.subtle.decrypt(
+    {
+      name: "AES-GCM",
+      iv: iv
+    },
+    sharedKey,
+    ciphertext
+  );
+}
+
+/**
+ * Packs metadata, IV, and ciphertext into a single ArrayBuffer.
+ * @param {string} fileId
+ * @param {number} chunkIndex
+ * @param {number} totalChunks
+ * @param {Uint8Array} iv
+ * @param {ArrayBuffer} ciphertext
+ * @returns {ArrayBuffer}
+ */
+export function createBinaryChunk(fileId, chunkIndex, totalChunks, iv, ciphertext) {
+  const headerLen = 1 + 8 + 4 + 4 + 12; // 29 bytes
+  const ciphertextBytes = new Uint8Array(ciphertext);
+  const packet = new Uint8Array(headerLen + ciphertextBytes.length);
+  
+  // 1. Magic byte (0xFB)
+  packet[0] = 0xFB;
+  
+  // 2. File ID (8 bytes)
+  const fileIdBytes = new TextEncoder().encode(fileId);
+  packet.set(fileIdBytes.subarray(0, 8), 1);
+  
+  // 3. Chunk Index (4 bytes) & Total Chunks (4 bytes)
+  const view = new DataView(packet.buffer);
+  view.setUint32(9, chunkIndex, false); // big-endian
+  view.setUint32(13, totalChunks, false); // big-endian
+  
+  // 4. IV (12 bytes)
+  packet.set(iv, 17);
+  
+  // 5. Ciphertext
+  packet.set(ciphertextBytes, 29);
+  
+  return packet.buffer;
+}
+
+/**
+ * Parses a packed ArrayBuffer chunk into its components.
+ * @param {ArrayBuffer} arrayBuffer
+ * @returns {object} { fileId, chunkIndex, totalChunks, iv, ciphertext }
+ */
+export function parseBinaryChunk(arrayBuffer) {
+  const view = new DataView(arrayBuffer);
+  
+  // 1. Magic byte
+  const magic = view.getUint8(0);
+  if (magic !== 0xFB) {
+    throw new Error("Invalid binary chunk magic byte");
+  }
+  
+  // 2. File ID (8 bytes)
+  const fileIdBytes = new Uint8Array(arrayBuffer, 1, 8);
+  // Trim any trailing null bytes
+  let end = 0;
+  while (end < 8 && fileIdBytes[end] !== 0) {
+    end++;
+  }
+  const fileId = new TextDecoder().decode(fileIdBytes.subarray(0, end));
+  
+  // 3. Chunk Index (4 bytes) & Total Chunks (4 bytes)
+  const chunkIndex = view.getUint32(9, false);
+  const totalChunks = view.getUint32(13, false);
+  
+  // 4. IV (12 bytes)
+  const iv = new Uint8Array(arrayBuffer, 17, 12);
+  
+  // 5. Ciphertext
+  const ciphertext = new Uint8Array(arrayBuffer, 29);
+  
+  return {
+    fileId,
+    chunkIndex,
+    totalChunks,
+    iv,
+    ciphertext
+  };
+}
+
+

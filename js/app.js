@@ -410,6 +410,11 @@ function setupPeerCallbacks(peerObj) {
   
   pm.onMessage = async (data) => {
     try {
+      if (data instanceof ArrayBuffer) {
+        await handleBinaryFileChunk(peerObj, data);
+        return;
+      }
+      
       const payload = JSON.parse(data);
       
       if (payload.type === 'handshake') {
@@ -460,123 +465,38 @@ function setupPeerCallbacks(peerObj) {
           const senderName = payload.sender || peerObj.nickname;
           addMessage(decrypted, senderName, false);
         }
-      } else if (payload.type === 'file-chunk') {
-        if (!peerObj.sharedKey) {
-          console.warn("Dropped raw file chunk: key exchange incomplete.");
-          return;
-        }
-        
+      } else if (payload.type === 'file-start') {
         const fileId = payload.fileId;
-        const chunkIndex = payload.chunkIndex;
-        const totalChunks = payload.totalChunks;
+        const senderName = payload.sender || peerObj.nickname;
         
-        // If this is a new file transfer, initialize the receiver
-        if (!fileReceivers[fileId]) {
-          const senderName = payload.sender || peerObj.nickname;
-          
-          // Add progress bubble
-          addFileProgressMessage(fileId, payload.filename, payload.filetype, payload.filesize, senderName, false);
-          
-          fileReceivers[fileId] = {
-            filename: payload.filename,
-            filetype: payload.filetype,
-            filesize: payload.filesize,
-            sender: senderName,
-            totalChunks: totalChunks,
-            chunks: new Array(totalChunks),
-            receivedChunksCount: 0,
-            startTime: Date.now(),
-            lastUpdateTime: Date.now(),
-            lastBytesReceived: 0,
-            bytesReceived: 0
-          };
-          logToConsole(`Receiving encrypted file "${payload.filename}" from ${senderName} in ${totalChunks} chunks...`);
-        }
+        // Add progress bubble
+        addFileProgressMessage(fileId, payload.filename, payload.filetype, payload.filesize, senderName, false);
         
-        const receiver = fileReceivers[fileId];
+        fileReceivers[fileId] = {
+          filename: payload.filename,
+          filetype: payload.filetype,
+          filesize: payload.filesize,
+          sender: senderName,
+          totalChunks: payload.totalChunks,
+          chunks: new Array(payload.totalChunks),
+          receivedChunksCount: 0,
+          startTime: Date.now(),
+          lastUpdateTime: Date.now(),
+          lastBytesReceived: 0,
+          bytesReceived: 0
+        };
+        logToConsole(`Receiving encrypted file "${payload.filename}" from ${senderName} in ${payload.totalChunks} chunks...`);
         
-        // Decrypt this chunk immediately
-        let decryptedChunkBuffer;
-        try {
-          decryptedChunkBuffer = await crypto.decryptBinary(peerObj.sharedKey, payload.chunkData);
-        } catch (decErr) {
-          logToConsole(`Failed to decrypt chunk ${chunkIndex} of "${receiver.filename}": ${decErr.message}`);
-          return;
-        }
-        
-        // Wrap in Blob and save to save RAM
-        if (!receiver.chunks[chunkIndex]) {
-          receiver.chunks[chunkIndex] = new Blob([decryptedChunkBuffer]);
-          receiver.receivedChunksCount++;
-          receiver.bytesReceived += decryptedChunkBuffer.byteLength;
-        }
-        
-        // Host streaming relay: immediately re-encrypt and relay this chunk to other active guest tunnels
+        // Host streaming relay: relay file-start to other guests
         if (state.isHost) {
           for (const otherPeer of state.peers) {
-            if (otherPeer.id === peerObj.id) continue; // skip the sender
-            
+            if (otherPeer.id === peerObj.id) continue;
             try {
-              // Encrypt this chunk using otherPeer's sharedKey
-              const base64Ciphertext = await crypto.encryptBinary(otherPeer.sharedKey, decryptedChunkBuffer);
-              const relayPayload = {
-                ...payload,
-                sender: receiver.sender, // preserve original sender name
-                chunkData: base64Ciphertext
-              };
-              
-              const pmOther = otherPeer.peerManager;
-              const dcOther = pmOther.dc;
-              if (dcOther && dcOther.readyState === 'open') {
-                dcOther.bufferedAmountLowThreshold = 65536;
-                if (dcOther.bufferedAmount > 65536) {
-                  await new Promise((resolve) => {
-                    const handleLow = () => {
-                      dcOther.removeEventListener('bufferedamountlow', handleLow);
-                      resolve();
-                    };
-                    dcOther.addEventListener('bufferedamountlow', handleLow);
-                    setTimeout(resolve, 150);
-                  });
-                }
-                pmOther.send(JSON.stringify(relayPayload));
-              }
+              otherPeer.peerManager.send(data);
             } catch (err) {
-              logToConsole(`Failed to relay chunk ${chunkIndex} to [${otherPeer.nickname}]: ${err.message}`);
+              logToConsole(`Failed to relay file metadata to [${otherPeer.nickname}]: ${err.message}`);
             }
           }
-        }
-        
-        // Update progress UI
-        const now = Date.now();
-        if (now - receiver.lastUpdateTime >= 500 || receiver.receivedChunksCount === totalChunks) {
-          const progressPercent = Math.round((receiver.receivedChunksCount / totalChunks) * 100);
-          const elapsedSec = (now - receiver.lastUpdateTime) / 1000;
-          const bytesInInterval = receiver.bytesReceived - receiver.lastBytesReceived;
-          const speedBps = elapsedSec > 0 ? bytesInInterval / elapsedSec : 0;
-          
-          let speedText = '';
-          if (speedBps < 1024) speedText = `${speedBps.toFixed(0)} B/s`;
-          else if (speedBps < 1024 * 1024) speedText = `${(speedBps / 1024).toFixed(1)} KB/s`;
-          else speedText = `${(speedBps / (1024 * 1024)).toFixed(1)} MB/s`;
-          
-          updateFileProgress(fileId, progressPercent, speedText);
-          
-          receiver.lastUpdateTime = now;
-          receiver.lastBytesReceived = receiver.bytesReceived;
-        }
-        
-        // If all chunks received, reassemble the file
-        if (receiver.receivedChunksCount === totalChunks) {
-          logToConsole(`All chunks received for "${receiver.filename}". Generating local Blob...`);
-          
-          const fileBlob = new Blob(receiver.chunks, { type: receiver.filetype });
-          const downloadUrl = URL.createObjectURL(fileBlob);
-          
-          completeFileProgress(fileId, receiver.filename, receiver.filetype, receiver.filesize, downloadUrl);
-          
-          delete fileReceivers[fileId];
-          logToConsole(`File "${receiver.filename}" reassembled and ready for download.`);
         }
       } else if (payload.type === 'members') {
         if (!state.isHost) {
@@ -725,6 +645,40 @@ async function sendFile(file) {
   // Add progress bubble in sender's own UI
   addFileProgressMessage(fileId, file.name, file.type, file.size, state.nickname, true);
   
+  // Send file-start metadata first
+  const fileStartPayload = {
+    type: 'file-start',
+    fileId: fileId,
+    filename: file.name,
+    filetype: file.type,
+    filesize: file.size,
+    totalChunks: totalChunks,
+    sender: state.nickname
+  };
+  
+  const metadataStr = JSON.stringify(fileStartPayload);
+  
+  if (state.isHost) {
+    for (const peer of state.peers) {
+      try {
+        peer.peerManager.send(metadataStr);
+      } catch (err) {
+        logToConsole(`Failed to send file metadata to [${peer.nickname}]: ${err.message}`);
+      }
+    }
+  } else {
+    const hostPeer = state.peers[0];
+    if (hostPeer) {
+      try {
+        hostPeer.peerManager.send(metadataStr);
+      } catch (err) {
+        logToConsole(`Failed to send file metadata to Host: ${err.message}`);
+        showToast("Failed to send file.", "error");
+        return;
+      }
+    }
+  }
+  
   let bytesSent = 0;
   let lastUpdateTime = Date.now();
   let lastBytesSent = 0;
@@ -744,18 +698,8 @@ async function sendFile(file) {
       // Host encrypts and sends the chunk to all connected guests
       for (const peer of state.peers) {
         try {
-          const base64Ciphertext = await crypto.encryptBinary(peer.sharedKey, chunkBuffer);
-          const payload = {
-            type: 'file-chunk',
-            fileId: fileId,
-            sender: state.nickname,
-            filename: file.name,
-            filetype: file.type,
-            filesize: file.size,
-            chunkIndex: i,
-            totalChunks: totalChunks,
-            chunkData: base64Ciphertext
-          };
+          const encrypted = await crypto.encryptBinaryRaw(peer.sharedKey, chunkBuffer);
+          const packet = crypto.createBinaryChunk(fileId, i, totalChunks, encrypted.iv, encrypted.ciphertext);
           
           const pm = peer.peerManager;
           const dc = pm.dc;
@@ -771,7 +715,7 @@ async function sendFile(file) {
                 setTimeout(resolve, 150); // Fallback
               });
             }
-            pm.send(JSON.stringify(payload));
+            pm.send(packet);
           }
         } catch (err) {
           logToConsole(`Failed to send chunk ${i} to peer [${peer.nickname}]: ${err.message}`);
@@ -782,17 +726,8 @@ async function sendFile(file) {
       const hostPeer = state.peers[0];
       if (hostPeer) {
         try {
-          const base64Ciphertext = await crypto.encryptBinary(hostPeer.sharedKey, chunkBuffer);
-          const payload = {
-            type: 'file-chunk',
-            fileId: fileId,
-            filename: file.name,
-            filetype: file.type,
-            filesize: file.size,
-            chunkIndex: i,
-            totalChunks: totalChunks,
-            chunkData: base64Ciphertext
-          };
+          const encrypted = await crypto.encryptBinaryRaw(hostPeer.sharedKey, chunkBuffer);
+          const packet = crypto.createBinaryChunk(fileId, i, totalChunks, encrypted.iv, encrypted.ciphertext);
           
           const pm = hostPeer.peerManager;
           const dc = pm.dc;
@@ -808,7 +743,7 @@ async function sendFile(file) {
                 setTimeout(resolve, 150); // Fallback
               });
             }
-            pm.send(JSON.stringify(payload));
+            pm.send(packet);
           }
         } catch (err) {
           logToConsole(`Failed to send chunk ${i} to Host: ${err.message}`);
@@ -844,6 +779,114 @@ async function sendFile(file) {
   const localUrl = URL.createObjectURL(file);
   completeFileProgress(fileId, file.name, file.type, file.size, localUrl);
   logToConsole(`File "${file.name}" sent successfully.`);
+}
+
+/**
+ * Processes a raw binary file chunk from WebRTC.
+ * @param {object} peerObj
+ * @param {ArrayBuffer} arrayBuffer
+ */
+async function handleBinaryFileChunk(peerObj, arrayBuffer) {
+  if (!peerObj.sharedKey) {
+    console.warn("Dropped raw file chunk: key exchange incomplete.");
+    return;
+  }
+  
+  let parsed;
+  try {
+    parsed = crypto.parseBinaryChunk(arrayBuffer);
+  } catch (err) {
+    logToConsole(`Failed to parse binary chunk: ${err.message}`);
+    return;
+  }
+  
+  const { fileId, chunkIndex, totalChunks, iv, ciphertext } = parsed;
+  
+  const receiver = fileReceivers[fileId];
+  if (!receiver) {
+    console.warn(`Warning: Received binary chunk ${chunkIndex} for unknown fileId: ${fileId}`);
+    return;
+  }
+  
+  // Decrypt this chunk immediately
+  let decryptedChunkBuffer;
+  try {
+    decryptedChunkBuffer = await crypto.decryptBinaryRaw(peerObj.sharedKey, iv, ciphertext);
+  } catch (decErr) {
+    logToConsole(`Failed to decrypt chunk ${chunkIndex} of "${receiver.filename}": ${decErr.message}`);
+    return;
+  }
+  
+  // Wrap in Blob and save to save RAM
+  if (!receiver.chunks[chunkIndex]) {
+    receiver.chunks[chunkIndex] = new Blob([decryptedChunkBuffer]);
+    receiver.receivedChunksCount++;
+    receiver.bytesReceived += decryptedChunkBuffer.byteLength;
+  }
+  
+  // Host streaming relay: immediately re-encrypt and relay this chunk to other active guest tunnels
+  if (state.isHost) {
+    for (const otherPeer of state.peers) {
+      if (otherPeer.id === peerObj.id) continue; // skip the sender
+      
+      try {
+        // Encrypt this chunk using otherPeer's sharedKey
+        const encrypted = await crypto.encryptBinaryRaw(otherPeer.sharedKey, decryptedChunkBuffer);
+        const relayPacket = crypto.createBinaryChunk(fileId, chunkIndex, totalChunks, encrypted.iv, encrypted.ciphertext);
+        
+        const pmOther = otherPeer.peerManager;
+        const dcOther = pmOther.dc;
+        if (dcOther && dcOther.readyState === 'open') {
+          dcOther.bufferedAmountLowThreshold = 65536;
+          if (dcOther.bufferedAmount > 65536) {
+            await new Promise((resolve) => {
+              const handleLow = () => {
+                dcOther.removeEventListener('bufferedamountlow', handleLow);
+                resolve();
+              };
+              dcOther.addEventListener('bufferedamountlow', handleLow);
+              setTimeout(resolve, 150);
+            });
+          }
+          pmOther.send(relayPacket);
+        }
+      } catch (err) {
+        logToConsole(`Failed to relay chunk ${chunkIndex} to [${otherPeer.nickname}]: ${err.message}`);
+      }
+    }
+  }
+  
+  // Update progress UI
+  const now = Date.now();
+  if (now - receiver.lastUpdateTime >= 500 || receiver.receivedChunksCount === totalChunks) {
+    const progressPercent = Math.round((receiver.receivedChunksCount / totalChunks) * 100);
+    const elapsedSec = (now - receiver.lastUpdateTime) / 1000;
+    const bytesInInterval = receiver.bytesReceived - receiver.lastBytesReceived;
+    const speedBps = elapsedSec > 0 ? bytesInInterval / elapsedSec : 0;
+    
+    let speedText = '';
+    if (speedBps < 1024) speedText = `${speedBps.toFixed(0)} B/s`;
+    else if (speedBps < 1024 * 1024) speedText = `${(speedBps / 1024).toFixed(1)} KB/s`;
+    else speedText = `${(speedBps / (1024 * 1024)).toFixed(1)} MB/s`;
+    
+    updateFileProgress(fileId, progressPercent, speedText);
+    
+    receiver.lastUpdateTime = now;
+    receiver.lastBytesReceived = receiver.bytesReceived;
+  }
+  
+  // If all chunks received, reassemble the file
+  if (receiver.receivedChunksCount === totalChunks) {
+    logToConsole(`All chunks received for "${receiver.filename}". Generating local Blob...`);
+    
+    const fileBlob = new Blob(receiver.chunks, { type: receiver.filetype });
+    const downloadUrl = URL.createObjectURL(fileBlob);
+    
+    completeFileProgress(fileId, receiver.filename, receiver.filetype, receiver.filesize, downloadUrl);
+    
+    delete fileReceivers[fileId];
+    logToConsole(`File "${receiver.filename}" reassembled and ready for download.`);
+  }
 }
 
 /**
