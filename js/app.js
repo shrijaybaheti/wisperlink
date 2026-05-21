@@ -9,7 +9,9 @@ import {
   showToast, 
   initConsoleDrawer,
   renderQrCode,
-  toggleQrContainer
+  toggleQrContainer,
+  addFileMessage,
+  initEmojiPicker
 } from './ui.js';
 import * as codec from './codec.js';
 import * as crypto from './crypto.js';
@@ -119,6 +121,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
   elements.btnSendMessage.addEventListener('click', sendMessage);
+
+  // Setup file attachment action and hidden input listener
+  elements.btnAttachFile.addEventListener('click', () => {
+    elements.fileInput.click();
+  });
+  elements.fileInput.addEventListener('change', handleFileSelected);
+
+  // Initialize emoji grid click listeners and window toggling
+  initEmojiPicker();
 
   // Check URL boarding params on load
   if (inviteParam) {
@@ -392,6 +403,8 @@ function setupPeerCallbacks(peerObj) {
           state.peers = [peerObj];
           elements.inputMessage.disabled = false;
           elements.btnSendMessage.disabled = false;
+          elements.btnAttachFile.disabled = false;
+          elements.btnEmojiTrigger.disabled = false;
         }
         
         refreshMembersUI();
@@ -413,6 +426,22 @@ function setupPeerCallbacks(peerObj) {
         } else {
           const senderName = payload.sender || peerObj.nickname;
           addMessage(decrypted, senderName, false);
+        }
+      } else if (payload.type === 'file') {
+        if (!peerObj.sharedKey) {
+          console.warn("Dropped raw file transmission: key exchange incomplete.");
+          return;
+        }
+        
+        logToConsole(`Received encrypted file: ${payload.filename}`);
+        const decryptedDataUrl = await crypto.decrypt(peerObj.sharedKey, payload.ciphertext);
+        
+        if (state.isHost) {
+          addFileMessage(payload.filename, payload.filetype, payload.filesize, decryptedDataUrl, peerObj.nickname, false);
+          await relayFile(peerObj.id, peerObj.nickname, payload.filename, payload.filetype, payload.filesize, decryptedDataUrl);
+        } else {
+          const senderName = payload.sender || peerObj.nickname;
+          addFileMessage(payload.filename, payload.filetype, payload.filesize, decryptedDataUrl, senderName, false);
         }
       } else if (payload.type === 'members') {
         if (!state.isHost) {
@@ -439,6 +468,8 @@ function setupPeerCallbacks(peerObj) {
     } else {
       elements.inputMessage.disabled = true;
       elements.btnSendMessage.disabled = true;
+      elements.btnAttachFile.disabled = true;
+      elements.btnEmojiTrigger.disabled = true;
       updateStatus('offline');
       showToast("Host connection lost.", "error");
     }
@@ -518,6 +549,110 @@ async function sendMessage() {
 }
 
 /**
+ * Host-only: relays a decrypted guest file attachment to other guest tunnels.
+ * Encrypts the file separately for each recipient using their shared key.
+ */
+async function relayFile(senderId, senderName, filename, filetype, filesize, dataUrl) {
+  logToConsole(`Relaying file "${filename}" from [${senderName}] to active nodes...`);
+  
+  for (const peer of state.peers) {
+    if (peer.id === senderId) continue;
+    
+    try {
+      const ciphertext = await crypto.encrypt(peer.sharedKey, dataUrl);
+      const payload = {
+        type: 'file',
+        sender: senderName,
+        filename,
+        filetype,
+        filesize,
+        ciphertext
+      };
+      peer.peerManager.send(JSON.stringify(payload));
+    } catch (err) {
+      logToConsole(`Failed to relay file to [${peer.nickname}]: ${err.message}`);
+    }
+  }
+}
+
+/**
+ * Reads the selected local file, encrypts it, and broadcasts it to peers.
+ */
+async function handleFileSelected(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  
+  // Clear the input value so the user can re-upload the same file if desired
+  e.target.value = '';
+  
+  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+  if (file.size > MAX_FILE_SIZE) {
+    showToast("File exceeds the 5MB size limit.", "error");
+    return;
+  }
+  
+  logToConsole(`Reading file: ${file.name} (${file.size} bytes)`);
+  
+  const reader = new FileReader();
+  reader.onload = async (event) => {
+    const dataUrl = event.target.result;
+    await sendFile(file.name, file.type, file.size, dataUrl);
+  };
+  reader.onerror = (err) => {
+    logToConsole(`Error reading file: ${err.message || err}`);
+    showToast("Failed to read the local file.", "error");
+  };
+  reader.readAsDataURL(file);
+}
+
+/**
+ * Encrypts a file (represented as a Data URL) and transmits it over the WebRTC data channel.
+ */
+async function sendFile(filename, filetype, filesize, dataUrl) {
+  if (state.peers.length === 0) {
+    showToast("No active peers connected.", "error");
+    return;
+  }
+  
+  try {
+    if (state.isHost) {
+      // Host encrypts and sends the file to all connected guests
+      for (const peer of state.peers) {
+        const ciphertext = await crypto.encrypt(peer.sharedKey, dataUrl);
+        const payload = {
+          type: 'file',
+          sender: state.nickname,
+          filename,
+          filetype,
+          filesize,
+          ciphertext
+        };
+        peer.peerManager.send(JSON.stringify(payload));
+      }
+      addFileMessage(filename, filetype, filesize, dataUrl, state.nickname, true);
+    } else {
+      // Guest encrypts and sends the file to the Host (which will relay it)
+      const hostPeer = state.peers[0];
+      if (hostPeer) {
+        const ciphertext = await crypto.encrypt(hostPeer.sharedKey, dataUrl);
+        const payload = {
+          type: 'file',
+          filename,
+          filetype,
+          filesize,
+          ciphertext
+        };
+        hostPeer.peerManager.send(JSON.stringify(payload));
+        addFileMessage(filename, filetype, filesize, dataUrl, state.nickname, true);
+      }
+    }
+  } catch (err) {
+    logToConsole(`Encryption or send failed for file: ${err.message}`);
+    showToast("Failed to send encrypted file.", "error");
+  }
+}
+
+/**
  * Host-only: broadcasts the complete list of participant nicknames.
  */
 function broadcastMemberList() {
@@ -553,6 +688,8 @@ function refreshMembersUI() {
     const active = state.peers.length > 0;
     elements.inputMessage.disabled = !active;
     elements.btnSendMessage.disabled = !active;
+    elements.btnAttachFile.disabled = !active;
+    elements.btnEmojiTrigger.disabled = !active;
     
     elements.chatRoomName.innerText = `Host Room (${state.peers.length} active)`;
   } else {
@@ -626,6 +763,8 @@ function resetToLanding() {
   elements.inputMessage.value = '';
   elements.inputMessage.disabled = true;
   elements.btnSendMessage.disabled = true;
+  elements.btnAttachFile.disabled = true;
+  elements.btnEmojiTrigger.disabled = true;
   
   elements.chatRoomName.innerText = "Session Offline";
   updateStatus('offline');

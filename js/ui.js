@@ -47,6 +47,11 @@ export const elements = {
   chatMessages: document.getElementById('chat-messages'),
   inputMessage: document.getElementById('input-message'),
   btnSendMessage: document.getElementById('btn-send-message'),
+  btnAttachFile: document.getElementById('btn-attach-file'),
+  fileInput: document.getElementById('file-input'),
+  btnEmojiTrigger: document.getElementById('btn-emoji-trigger'),
+  emojiPicker: document.getElementById('emoji-picker'),
+  emojiPickerGrid: document.getElementById('emoji-picker-grid'),
   
   toastOverlay: document.getElementById('toast-overlay')
 };
@@ -174,6 +179,73 @@ export function addMessage(text, sender, isMe) {
   const textDiv = document.createElement('div');
   textDiv.className = 'msg-text';
   textDiv.innerHTML = parseDiscordMarkdown(text);
+  
+  block.appendChild(meta);
+  block.appendChild(textDiv);
+  elements.chatMessages.appendChild(block);
+  
+  scrollToBottom();
+}
+
+/**
+ * Appends a file download / preview message to the chat view.
+ * @param {string} filename
+ * @param {string} filetype
+ * @param {number} filesize
+ * @param {string} dataUrl
+ * @param {string} sender
+ * @param {boolean} isMe
+ */
+export function addFileMessage(filename, filetype, filesize, dataUrl, sender, isMe) {
+  const block = document.createElement('div');
+  block.className = `msg-block ${isMe ? 'me' : 'peer'}`;
+  
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  
+  const meta = document.createElement('div');
+  meta.className = 'msg-meta';
+  meta.innerText = `${sender} [${timeStr}]`;
+  
+  const textDiv = document.createElement('div');
+  textDiv.className = 'msg-text file-msg';
+  
+  // Format file size
+  let sizeStr = '';
+  if (filesize < 1024) sizeStr = `${filesize} B`;
+  else if (filesize < 1024 * 1024) sizeStr = `${(filesize / 1024).toFixed(1)} KB`;
+  else sizeStr = `${(filesize / (1024 * 1024)).toFixed(1)} MB`;
+  
+  // If it's an image, render a nice preview
+  if (filetype.startsWith('image/')) {
+    const img = document.createElement('img');
+    img.src = dataUrl;
+    img.className = 'chat-image-preview';
+    img.alt = filename;
+    textDiv.appendChild(img);
+  }
+  
+  const fileInfo = document.createElement('div');
+  fileInfo.className = 'file-info-row';
+  
+  const icon = document.createElement('span');
+  icon.className = 'file-icon';
+  icon.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5a2.5 2.5 0 0 1 5 0v10.5c0 .83-.67 1.5-1.5 1.5s-1.5-.67-1.5-1.5V6H9v9.5a3 3 0 0 0 6 0V5a4 4 0 0 0-8 0v12.5a5.5 5.5 0 0 0 11 0V6h-1.5z"/></svg>`;
+  
+  const details = document.createElement('div');
+  details.className = 'file-details';
+  details.innerHTML = `<span class="file-name">${escapeHTML(filename)}</span><span class="file-size">${sizeStr}</span>`;
+  
+  const dlBtn = document.createElement('a');
+  dlBtn.href = dataUrl;
+  dlBtn.download = filename;
+  dlBtn.className = 'btn-download';
+  dlBtn.innerText = 'Download';
+  
+  fileInfo.appendChild(icon);
+  fileInfo.appendChild(details);
+  fileInfo.appendChild(dlBtn);
+  textDiv.appendChild(fileInfo);
   
   block.appendChild(meta);
   block.appendChild(textDiv);
@@ -366,4 +438,53 @@ export function showToast(text, type = 'info') {
  */
 export function scrollToBottom() {
   elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+}
+
+/**
+ * Initializes the emoji picker popover and hooks its item clicks.
+ */
+export function initEmojiPicker() {
+  const pickerGrid = elements.emojiPickerGrid;
+  const trigger = elements.btnEmojiTrigger;
+  const popover = elements.emojiPicker;
+  const input = elements.inputMessage;
+
+  const popularEmojis = [
+    '😄', '😃', '😀', '😊', '😉', '😍', '😘', '😜', '😝', '🧐', '😎', '🤔',
+    '😐', '😑', '😒', '🙄', '😬', '😔', '😢', '😭', '😱', '😡', '💀', '💩',
+    '👍', '👎', '👊', '✊', '✌️', '👌', '✋', '👐', '👏', '🙌', '🙏', '🤝',
+    '❤️', '💔', '💕', '💖', '🔥', '🚀', '🎉', '💯', '⚠️', '✅', '❌', '👀'
+  ];
+
+  pickerGrid.innerHTML = '';
+  popularEmojis.forEach(emoji => {
+    const item = document.createElement('span');
+    item.className = 'emoji-item';
+    item.innerText = emoji;
+    item.addEventListener('click', () => {
+      const start = input.selectionStart || 0;
+      const end = input.selectionEnd || 0;
+      const val = input.value;
+      input.value = val.substring(0, start) + emoji + val.substring(end);
+      
+      input.focus();
+      const newPos = start + emoji.length;
+      input.setSelectionRange(newPos, newPos);
+      
+      popover.style.display = 'none';
+    });
+    pickerGrid.appendChild(item);
+  });
+
+  trigger.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const show = popover.style.display === 'none';
+    popover.style.display = show ? 'flex' : 'none';
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!popover.contains(e.target) && e.target !== trigger) {
+      popover.style.display = 'none';
+    }
+  });
 }
