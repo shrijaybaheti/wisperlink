@@ -941,3 +941,62 @@ body {
     display: none;
   }
 }
+
+/* --- Emoji Autocomplete Popover --- */
+.emoji-autocomplete-popover {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 0;
+  width: 260px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  z-index: 110;
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 0.35rem;
+  gap: 0.15rem;
+}
+
+.emoji-autocomplete-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  transition: background 0.15s ease;
+  user-select: none;
+}
+
+.emoji-autocomplete-item .autocomplete-emoji {
+  font-size: 1.15rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+
+.emoji-autocomplete-item .autocomplete-name {
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}
+
+.emoji-autocomplete-item:hover,
+.emoji-autocomplete-item.active {
+  background: var(--bg-surface-hover);
+  border-left: 2px solid var(--accent-purple-light);
+  padding-left: calc(0.65rem - 2px);
+}
+
+.emoji-autocomplete-item.active .autocomplete-name {
+  color: var(--accent-purple-light);
+}

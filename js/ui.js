@@ -52,6 +52,7 @@ export const elements = {
   btnEmojiTrigger: document.getElementById('btn-emoji-trigger'),
   emojiPicker: document.getElementById('emoji-picker'),
   emojiPickerGrid: document.getElementById('emoji-picker-grid'),
+  emojiAutocomplete: document.getElementById('emoji-autocomplete'),
   
   toastOverlay: document.getElementById('toast-overlay')
 };
@@ -485,6 +486,167 @@ export function initEmojiPicker() {
   document.addEventListener('click', (e) => {
     if (!popover.contains(e.target) && e.target !== trigger) {
       popover.style.display = 'none';
+    }
+  });
+}
+
+/**
+ * Initializes the Discord-style emoji autocomplete dropdown list.
+ */
+export function initEmojiAutocomplete() {
+  const popover = elements.emojiAutocomplete;
+  const input = elements.inputMessage;
+
+  const emojiSuggestions = [
+    { name: 'smile', emoji: '😄' },
+    { name: 'grin', emoji: '😁' },
+    { name: 'joy', emoji: '😂' },
+    { name: 'laughing', emoji: '😆' },
+    { name: 'sweat_smile', emoji: '😅' },
+    { name: 'wink', emoji: '😉' },
+    { name: 'heart', emoji: '❤️' },
+    { name: 'thumbsup', emoji: '👍' },
+    { name: 'thumbsdown', emoji: '👎' },
+    { name: 'fire', emoji: '🔥' },
+    { name: 'rocket', emoji: '🚀' },
+    { name: 'cry', emoji: '😢' },
+    { name: 'sob', emoji: '😭' },
+    { name: 'tada', emoji: '🎉' },
+    { name: 'eyes', emoji: '👀' },
+    { name: 'thinking', emoji: '🤔' },
+    { name: 'ok_hand', emoji: '👌' },
+    { name: 'clap', emoji: '👏' },
+    { name: '100', emoji: '💯' },
+    { name: 'skull', emoji: '💀' },
+    { name: 'rage', emoji: '😡' },
+    { name: 'scream', emoji: '😱' },
+    { name: 'poop', emoji: '💩' },
+    { name: 'check', emoji: '✅' },
+    { name: 'cross', emoji: '❌' },
+    { name: 'warning', emoji: '⚠️' },
+    { name: 'party', emoji: '🥳' },
+    { name: 'wave', emoji: '👋' }
+  ];
+
+  let activeIndex = 0;
+  let currentFiltered = [];
+
+  function checkAutocomplete() {
+    const val = input.value;
+    const cursor = input.selectionStart || 0;
+    const textBefore = val.substring(0, cursor);
+    const match = textBefore.match(/(?:^|\s)(:([a-zA-Z0-9_]*))$/);
+
+    if (match) {
+      const matchFull = match[1]; // e.g. ":sm" or ":"
+      const queryText = match[2].toLowerCase();
+
+      currentFiltered = emojiSuggestions.filter(item =>
+        item.name.toLowerCase().includes(queryText)
+      ).slice(0, 10);
+
+      if (currentFiltered.length > 0) {
+        if (activeIndex >= currentFiltered.length) {
+          activeIndex = 0;
+        }
+        renderPopover();
+        popover.style.display = 'block';
+        return;
+      }
+    }
+
+    popover.style.display = 'none';
+    currentFiltered = [];
+    activeIndex = 0;
+  }
+
+  function renderPopover() {
+    popover.innerHTML = '';
+    currentFiltered.forEach((item, index) => {
+      const div = document.createElement('div');
+      div.className = 'emoji-autocomplete-item';
+      if (index === activeIndex) {
+        div.classList.add('active');
+      }
+
+      const emojiSpan = document.createElement('span');
+      emojiSpan.className = 'autocomplete-emoji';
+      emojiSpan.innerText = item.emoji;
+
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'autocomplete-name';
+      nameSpan.innerText = `:${item.name}:`;
+
+      div.appendChild(emojiSpan);
+      div.appendChild(nameSpan);
+
+      div.addEventListener('click', (e) => {
+        e.stopPropagation();
+        selectEmoji(item.emoji);
+      });
+
+      popover.appendChild(div);
+    });
+  }
+
+  function selectEmoji(emoji) {
+    const val = input.value;
+    const cursor = input.selectionStart || 0;
+    const textBefore = val.substring(0, cursor);
+    const match = textBefore.match(/(?:^|\s)(:([a-zA-Z0-9_]*))$/);
+
+    if (match) {
+      const matchFull = match[1];
+      const startIdx = cursor - matchFull.length;
+
+      const newVal = val.substring(0, startIdx) + emoji + val.substring(cursor);
+      input.value = newVal;
+
+      const newCursorPos = startIdx + emoji.length;
+      input.focus();
+      input.setSelectionRange(newCursorPos, newCursorPos);
+    }
+
+    popover.style.display = 'none';
+    currentFiltered = [];
+    activeIndex = 0;
+  }
+
+  input.addEventListener('input', checkAutocomplete);
+  input.addEventListener('keyup', (e) => {
+    if (['ArrowUp', 'ArrowDown', 'Enter', 'Tab', 'Escape'].includes(e.key)) {
+      return;
+    }
+    checkAutocomplete();
+  });
+
+  input.addEventListener('keydown', (e) => {
+    if (popover.style.display === 'block' && currentFiltered.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        activeIndex = (activeIndex + 1) % currentFiltered.length;
+        renderPopover();
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        activeIndex = (activeIndex - 1 + currentFiltered.length) % currentFiltered.length;
+        renderPopover();
+      } else if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        selectEmoji(currentFiltered[activeIndex].emoji);
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        popover.style.display = 'none';
+        currentFiltered = [];
+        activeIndex = 0;
+      }
+    }
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!popover.contains(e.target) && e.target !== input) {
+      popover.style.display = 'none';
+      currentFiltered = [];
+      activeIndex = 0;
     }
   });
 }
