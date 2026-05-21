@@ -24,6 +24,7 @@ export const elements = {
   hostQrContainer: document.getElementById('host-qr-container'),
   hostRemoteCode: document.getElementById('host-remote-code'),
   btnHostConnect: document.getElementById('btn-host-connect'),
+  hostSignalingStatus: document.getElementById('host-signaling-status'),
   
   panelGuestControls: document.getElementById('panel-guest-controls'),
   joinerRemoteCode: document.getElementById('joiner-remote-code'),
@@ -33,6 +34,7 @@ export const elements = {
   btnJoinerCopyAnswer: document.getElementById('btn-joiner-copy-answer'),
   btnJoinerShowQr: document.getElementById('btn-joiner-show-qr'),
   joinerQrContainer: document.getElementById('joiner-qr-container'),
+  joinerSignalingStatus: document.getElementById('joiner-signaling-status'),
   
   peerList: document.getElementById('peer-list'),
   
@@ -419,11 +421,15 @@ export function toggleQrContainer(container, forceState) {
 /**
  * Triggers toast message.
  * @param {string} text
- * @param {'info'|'error'} type
+ * @param {'info'|'warning'|'error'} type
  */
 export function showToast(text, type = 'info') {
   const toast = document.createElement('div');
-  toast.className = `toast-console ${type === 'error' ? 'error' : ''}`;
+  let typeClass = '';
+  if (type === 'error') typeClass = 'error';
+  else if (type === 'warning') typeClass = 'warning';
+  
+  toast.className = `toast-console ${typeClass}`;
   toast.innerText = text;
   
   elements.toastOverlay.appendChild(toast);

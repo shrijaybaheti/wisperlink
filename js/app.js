@@ -213,6 +213,8 @@ async function startSetup(isHost) {
   elements.joinerAnswerSection.style.display = "none";
   elements.hostQrContainer.style.display = "none";
   elements.joinerQrContainer.style.display = "none";
+  elements.hostSignalingStatus.style.display = "none";
+  elements.joinerSignalingStatus.style.display = "none";
   elements.peerList.innerHTML = '';
   elements.eventLog.innerHTML = '';
   
@@ -306,6 +308,8 @@ async function generateInvite() {
     
     // Setup automatic WebSocket tracker signaling
     logToConsole("Initializing automatic signaling relay...");
+    elements.hostSignalingStatus.style.display = "flex";
+    
     const hostPeerIdHex = generateRandomHex(20);
     state.signaler = new TrackerSignaler(trackerUrls, roomIdHex, hostPeerIdHex);
     
@@ -324,6 +328,8 @@ async function generateInvite() {
         logToConsole("Setting remote answer...");
         await state.pendingHostPeer.peerManager.acceptAnswer(answerDesc);
         
+        elements.hostSignalingStatus.style.display = "none";
+        
         if (state.signaler) {
           state.signaler.close();
           state.signaler = null;
@@ -336,6 +342,7 @@ async function generateInvite() {
     state.signaler.onError = (err) => {
       logToConsole(`Host signaling failed: ${err.message}. Waiting for manual paste.`);
       showToast("Signaling failed. Paste guest answer manually.", "warning");
+      elements.hostSignalingStatus.style.display = "none";
     };
     
     state.signaler.connect();
@@ -444,6 +451,7 @@ async function handleJoinerProcess() {
     if (isAutoSignaling) {
       logToConsole("Initiating automatic WebRTC handshake via tracker...");
       updateStatus('connecting');
+      elements.joinerSignalingStatus.style.display = "flex";
       
       const guestPeerIdHex = Array.from(window.crypto.getRandomValues(new Uint8Array(20)), b => b.toString(16).padStart(2, '0')).join('');
       state.signaler = new TrackerSignaler(trackerUrls, roomParam, guestPeerIdHex);
@@ -496,6 +504,7 @@ function switchToManualFallback(answerCode) {
     state.signalingTimeoutId = null;
   }
   
+  elements.joinerSignalingStatus.style.display = "none";
   elements.joinerLocalCode.innerText = answerCode;
   elements.joinerAnswerSection.style.display = "flex";
   elements.btnJoinerCopyAnswer.disabled = false;
@@ -552,6 +561,8 @@ function setupPeerCallbacks(peerObj) {
         clearTimeout(state.signalingTimeoutId);
         state.signalingTimeoutId = null;
       }
+      elements.hostSignalingStatus.style.display = "none";
+      elements.joinerSignalingStatus.style.display = "none";
     } catch (err) {
       logToConsole(`[Tunnel:${peerObj.id}] Failed to dispatch handshake: ${err.message}`);
     }
@@ -1193,6 +1204,8 @@ function resetToLanding() {
   elements.hostRemoteCode.value = '';
   elements.joinerRemoteCode.value = '';
   elements.joinerLocalCode.innerText = '';
+  elements.hostSignalingStatus.style.display = "none";
+  elements.joinerSignalingStatus.style.display = "none";
   elements.inputMessage.value = '';
   elements.inputMessage.disabled = true;
   elements.inputMessage.placeholder = "Session Offline - Connect a peer to chat...";
