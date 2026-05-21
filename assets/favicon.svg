@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <defs>
+    <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2bd9a0" />
+      <stop offset="100%" stop-color="#b052ff" />
+    </linearGradient>
+  </defs>
+  <rect width="100" height="100" rx="20" fill="#0c0e17" />
+  <circle cx="50" cy="50" r="32" fill="none" stroke="url(#glow)" stroke-width="4" stroke-dasharray="6 4" />
+  <!-- A lock icon overlaid with chat bubbles -->
+  <path d="M40 45 V40 A10 10 0 0 1 60 40 V45" fill="none" stroke="url(#glow)" stroke-width="4" stroke-linecap="round" />
+  <rect x="34" y="45" width="32" height="24" rx="6" fill="#141829" stroke="url(#glow)" stroke-width="3" />
+  <circle cx="50" cy="55" r="3" fill="url(#glow)" />
+  <path d="M50 58 V62" stroke="url(#glow)" stroke-width="3" stroke-linecap="round" />
+</svg>

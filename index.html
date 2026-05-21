@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>whisperlink | secure serverless group chat</title>
+  <meta name="description" content="Sleek, professional, 100% serverless peer-to-peer encrypted chat. Zero servers, zero metadata, instant key exchange.">
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <div id="app">
+    
+    <!-- LANDING VIEW (Overlay Console) -->
+    <section id="view-landing" class="view active">
+      <div class="landing-header">
+        <h1 class="landing-brand">whisper<span>link</span></h1>
+        <p class="landing-subtitle">Serverless P2P Group Console</p>
+      </div>
+      
+      <div class="landing-card">
+        <div class="form-group">
+          <label class="form-label" for="input-nickname">Choose Nickname</label>
+          <input class="input-console" id="input-nickname" type="text" placeholder="e.g. Alice" maxlength="15" autocomplete="off">
+        </div>
+        
+        <button class="btn-console orange" id="btn-host-start">Host a Chat</button>
+        <button class="btn-console" id="btn-join-start">Join a Chat</button>
+      </div>
+    </section>
+
+    <!-- MAIN CONSOLE LAYOUT (Split View) -->
+    <!-- Left Sidebar -->
+    <aside class="panel-sidebar">
+      <header class="sidebar-header">
+        <h2 class="sidebar-title">whisper<span>link</span></h2>
+        <div class="status-indicator">
+          <span class="status-dot" id="status-dot"></span>
+          <span id="status-text">OFFLINE</span>
+        </div>
+      </header>
+      
+      <div class="sidebar-scroll">
+        <!-- HOST PANEL (Visible to Host) -->
+        <div id="panel-host-controls" class="console-box" style="display: none;">
+          <div class="console-header">
+            <span class="console-title">Host Controls</span>
+          </div>
+          <button class="btn-console orange" id="btn-host-gen-invite" style="width: 100%;">Invite Member</button>
+          
+          <div id="host-invite-section" style="display: none; flex-direction: column; gap: 0.5rem; margin-top: 0.25rem;">
+            <span class="form-label">Invite Link & QR:</span>
+            <div class="code-voucher">
+              <span class="code-field" id="host-local-code">Generating...</span>
+              <button class="btn-icon" id="btn-host-copy-invite" title="Copy Invite Code">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                </svg>
+              </button>
+              <button class="btn-icon" id="btn-host-show-qr" title="Show QR Code">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="14" width="7" height="7"></rect>
+                  <rect x="3" y="14" width="7" height="7"></rect>
+                </svg>
+              </button>
+            </div>
+            <!-- QR code drawer -->
+            <div id="host-qr-container" class="qr-container" style="display: none;"></div>
+          </div>
+          
+          <div class="form-group" style="margin-top: 0.25rem;">
+            <label class="form-label" for="host-remote-code">Paste Guest Answer Code:</label>
+            <input class="input-console" id="host-remote-code" placeholder="Paste answer..." autocomplete="off">
+            <button class="btn-console orange" id="btn-host-connect" style="margin-top: 0.25rem; width: 100%;" disabled>Establish Link</button>
+          </div>
+        </div>
+
+        <!-- GUEST PANEL (Visible to Guest) -->
+        <div id="panel-guest-controls" class="console-box" style="display: none;">
+          <div class="console-header">
+            <span class="console-title">Guest Controls</span>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="joiner-remote-code">Paste Host Invite Code:</label>
+            <input class="input-console" id="joiner-remote-code" placeholder="Paste invite code..." autocomplete="off">
+            <button class="btn-console orange" id="btn-joiner-process" style="margin-top: 0.25rem; width: 100%;" disabled>Process Invite</button>
+          </div>
+
+          <div id="joiner-answer-section" style="display: none; flex-direction: column; gap: 0.5rem; margin-top: 0.25rem;">
+            <span class="form-label">Answer Code & QR:</span>
+            <div class="code-voucher">
+              <span class="code-field" id="joiner-local-code">Generating...</span>
+              <button class="btn-icon" id="btn-joiner-copy-answer" title="Copy Answer Code">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                </svg>
+              </button>
+              <button class="btn-icon" id="btn-joiner-show-qr" title="Show QR Code">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="14" width="7" height="7"></rect>
+                  <rect x="3" y="14" width="7" height="7"></rect>
+                </svg>
+              </button>
+            </div>
+            <!-- QR code drawer -->
+            <div id="joiner-qr-container" class="qr-container" style="display: none;"></div>
+          </div>
+        </div>
+
+        <!-- ACTIVE PEERS LIST -->
+        <div class="console-box">
+          <div class="console-header">
+            <span class="console-title">Grid Members</span>
+          </div>
+          <div class="peer-list" id="peer-list">
+            <!-- Peer items added dynamically -->
+          </div>
+        </div>
+      </div>
+      
+      <!-- EVENT LOG PANEL (Collapsible Drawer) -->
+      <div class="event-log-container collapsed" id="event-log-container">
+        <div class="event-log-header" id="event-log-header">
+          <span class="console-title">Console Inspector</span>
+          <span class="event-log-arrow">▲</span>
+        </div>
+        <div class="event-log" id="event-log"></div>
+      </div>
+    </aside>
+
+    <!-- Right Main Panel -->
+    <main class="panel-main">
+      <header class="chat-header">
+        <div class="chat-room-info">
+          <span class="chat-room-name" id="chat-room-name">Session Offline</span>
+          <span class="chat-room-meta" id="chat-room-security">SECURE P2P NODE</span>
+        </div>
+        <button class="btn-console" id="btn-disconnect">Disconnect</button>
+      </header>
+
+      <div class="chat-messages" id="chat-messages">
+        <!-- Messages here -->
+      </div>
+
+      <footer class="chat-input-bar">
+        <input class="input-message" id="input-message" placeholder="Send transmission..." autocomplete="off" disabled>
+        <button class="btn-send" id="btn-send-message" disabled>
+          <svg viewBox="0 0 24 24">
+            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+          </svg>
+        </button>
+      </footer>
+    </main>
+
+  </div>
+
+  <!-- Toast Notification Overlay Container -->
+  <div class="toast-overlay" id="toast-overlay"></div>
+
+  <!-- Local Standalone Vendor Scripts -->
+  <script src="js/qrcode.min.js"></script>
+
+  <!-- Javascript Modules Entry -->
+  <script type="module" src="js/app.js"></script>
+
+</body>
+</html>
