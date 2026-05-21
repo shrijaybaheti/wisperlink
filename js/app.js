@@ -401,10 +401,6 @@ function setupPeerCallbacks(peerObj) {
         } else {
           // Guest: Connection is fully active now
           state.peers = [peerObj];
-          elements.inputMessage.disabled = false;
-          elements.btnSendMessage.disabled = false;
-          elements.btnAttachFile.disabled = false;
-          elements.btnEmojiTrigger.disabled = false;
         }
         
         refreshMembersUI();
@@ -466,10 +462,6 @@ function setupPeerCallbacks(peerObj) {
     if (state.isHost) {
       broadcastMemberList();
     } else {
-      elements.inputMessage.disabled = true;
-      elements.btnSendMessage.disabled = true;
-      elements.btnAttachFile.disabled = true;
-      elements.btnEmojiTrigger.disabled = true;
       updateStatus('offline');
       showToast("Host connection lost.", "error");
     }
@@ -678,6 +670,8 @@ function broadcastMemberList() {
  * Refreshes member lists and enables/disables inputs dynamically.
  */
 function refreshMembersUI() {
+  const isConnected = state.peers.length > 0 && state.peers.some(p => p.sharedKey);
+  
   if (state.isHost) {
     const members = [
       { name: `${state.nickname} (You)`, isHost: true },
@@ -685,20 +679,40 @@ function refreshMembersUI() {
     ];
     updatePeerList(members);
     
-    const active = state.peers.length > 0;
-    elements.inputMessage.disabled = !active;
-    elements.btnSendMessage.disabled = !active;
-    elements.btnAttachFile.disabled = !active;
-    elements.btnEmojiTrigger.disabled = !active;
+    elements.inputMessage.disabled = !isConnected;
+    elements.btnSendMessage.disabled = !isConnected;
+    elements.btnAttachFile.disabled = !isConnected;
+    elements.btnEmojiTrigger.disabled = !isConnected;
+    
+    if (isConnected) {
+      elements.inputMessage.placeholder = "Type a transmission...";
+    } else {
+      elements.inputMessage.placeholder = "Waiting for guest connection...";
+    }
     
     elements.chatRoomName.innerText = `Host Room (${state.peers.length} active)`;
   } else {
     const hostPeer = state.peers[0];
-    if (hostPeer && hostPeer.sharedKey) {
+    const guestConnected = !!(hostPeer && hostPeer.sharedKey);
+    
+    elements.inputMessage.disabled = !guestConnected;
+    elements.btnSendMessage.disabled = !guestConnected;
+    elements.btnAttachFile.disabled = !guestConnected;
+    elements.btnEmojiTrigger.disabled = !guestConnected;
+    
+    if (guestConnected) {
       elements.chatRoomName.innerText = `Guest Room (Host: ${hostPeer.nickname})`;
+      elements.inputMessage.placeholder = "Type a transmission...";
+      
+      const members = [
+        { name: `${state.nickname} (You)`, isHost: false },
+        { name: hostPeer.nickname, isHost: true }
+      ];
+      updatePeerList(members);
     } else {
       elements.chatRoomName.innerText = "Connecting to Host...";
-      updatePeerList([{ name: state.nickname, isHost: false }]);
+      elements.inputMessage.placeholder = "Connecting to host...";
+      updatePeerList([{ name: `${state.nickname} (You)`, isHost: false }]);
     }
   }
 }
@@ -762,6 +776,7 @@ function resetToLanding() {
   elements.joinerLocalCode.innerText = '';
   elements.inputMessage.value = '';
   elements.inputMessage.disabled = true;
+  elements.inputMessage.placeholder = "Session Offline - Connect a peer to chat...";
   elements.btnSendMessage.disabled = true;
   elements.btnAttachFile.disabled = true;
   elements.btnEmojiTrigger.disabled = true;

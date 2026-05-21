@@ -641,7 +641,8 @@ body {
 }
 
 .input-message {
-  flex: 1;
+  display: block;
+  width: 100%;
   background: var(--bg-app);
   border: 1px solid var(--border-color);
   color: var(--text-primary);
@@ -651,6 +652,14 @@ body {
   font-family: var(--font-sans);
   border-radius: 6px;
   transition: all 0.2s ease;
+}
+
+.input-message:disabled {
+  background: var(--bg-surface);
+  border-color: var(--border-color);
+  color: var(--text-dim);
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .input-message:focus {
@@ -757,13 +766,10 @@ body {
 .input-wrapper {
   position: relative;
   flex: 1;
-  display: flex;
-  align-items: center;
 }
 
 .input-wrapper .input-message {
   padding-right: 48px;
-  width: 100%;
 }
 
 .input-wrapper #btn-emoji-trigger {
