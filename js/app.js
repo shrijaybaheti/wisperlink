@@ -20,7 +20,7 @@ import {
 import * as codec from './codec.js';
 import * as crypto from './crypto.js';
 import { PeerManager } from './peer.js';
-import { TrackerSignaler } from './signaling.js';
+import { MqttSignaler } from './signaling.js';
 
 // NAT Discovery STUN Servers
 const iceConfig = {
@@ -45,7 +45,8 @@ let state = {
   peers: [],            // List of active peer objects: { id, peerManager, sharedKey, nickname }
   pendingHostPeer: null, // Host-only: peer object currently in the handshake process
   signaler: null,       // WebSocket signaling manager
-  signalingTimeoutId: null // Timeout tracker for fallback
+  signalingTimeoutId: null, // Timeout tracker for fallback
+  offerIntervalId: null // Interval for host periodic offer republishing
 };
 
 // Concurrency locks to prevent double-execution during auto-paste or button double-clicks
@@ -306,43 +307,55 @@ async function generateInvite() {
     
     logToConsole(`Invite link generated [${peerId}]. QR Code set to URL.`);
     
-    // Setup automatic WebSocket tracker signaling
+    // Setup automatic WebSocket MQTT signaling
     logToConsole("Initializing automatic signaling relay...");
     elements.hostSignalingStatus.style.display = "flex";
     
     const hostPeerIdHex = generateRandomHex(20);
-    state.signaler = new TrackerSignaler(trackerUrls, roomIdHex, hostPeerIdHex);
+    state.signaler = new MqttSignaler("wss://broker.hivemq.com:8884/mqtt", roomIdHex, hostPeerIdHex);
     
     state.signaler.onLog = (msg) => logToConsole(`[Signaler] ${msg}`);
     
     state.signaler.onConnect = () => {
-      state.signaler.sendOffer({ type: 'offer', sdp: encryptedOffer });
+      logToConsole("MQTT Signaler connected. Subscribing to answers...");
+      state.signaler.subscribe(state.signaler.topicAnswers);
+      
+      logToConsole("Publishing encrypted Offer...");
+      state.signaler.publish(state.signaler.topicOffers, encryptedOffer);
+      
+      // Periodically republish offer every 3 seconds
+      if (state.offerIntervalId) {
+        clearInterval(state.offerIntervalId);
+      }
+      state.offerIntervalId = setInterval(() => {
+        if (state.signaler && state.signaler.isConnected) {
+          logToConsole("Republishing encrypted Offer...");
+          state.signaler.publish(state.signaler.topicOffers, encryptedOffer);
+        }
+      }, 3000);
     };
     
-    state.signaler.onAnswer = async (answerPayload, offerId, remotePeerId) => {
+    state.signaler.onAnswer = async (encryptedAnswerPayload, remotePeerId) => {
       try {
         logToConsole(`Received answer from Guest [${remotePeerId.substring(0, 8)}]. Decrypting...`);
-        const decryptedAnswerCode = await crypto.decryptWithHexKey(answerPayload.sdp, keyHex);
+        const decryptedAnswerCode = await crypto.decryptWithHexKey(encryptedAnswerPayload, keyHex);
         
         const answerDesc = await codec.decode(decryptedAnswerCode);
         logToConsole("Setting remote answer...");
         await state.pendingHostPeer.peerManager.acceptAnswer(answerDesc);
         
         elements.hostSignalingStatus.style.display = "none";
-        
-        if (state.signaler) {
-          state.signaler.close();
-          state.signaler = null;
-        }
+        cleanupSignaling();
       } catch (err) {
         logToConsole(`Failed to process auto-signaled answer: ${err.message}`);
       }
     };
     
     state.signaler.onError = (err) => {
-      logToConsole(`Host signaling failed: ${err.message}. Waiting for manual paste.`);
+      logToConsole(`Host signaling failed: ${err.message || "Disconnected"}. Waiting for manual paste.`);
       showToast("Signaling failed. Paste guest answer manually.", "warning");
       elements.hostSignalingStatus.style.display = "none";
+      cleanupSignaling();
     };
     
     state.signaler.connect();
@@ -449,21 +462,29 @@ async function handleJoinerProcess() {
     state.peers = [peerObj];
     
     if (isAutoSignaling) {
-      logToConsole("Initiating automatic WebRTC handshake via tracker...");
+      logToConsole("Initiating automatic WebRTC handshake via MQTT...");
       updateStatus('connecting');
       elements.joinerSignalingStatus.style.display = "flex";
       
       const guestPeerIdHex = Array.from(window.crypto.getRandomValues(new Uint8Array(20)), b => b.toString(16).padStart(2, '0')).join('');
-      state.signaler = new TrackerSignaler(trackerUrls, roomParam, guestPeerIdHex);
+      state.signaler = new MqttSignaler("wss://broker.hivemq.com:8884/mqtt", roomParam, guestPeerIdHex);
       state.signaler.onLog = (msg) => logToConsole(`[Signaler] ${msg}`);
       
-      state.signaler.onOffer = (offerPayload, offerId, remotePeerId) => {
-        logToConsole(`Sending encrypted WebRTC Answer to Host [${remotePeerId.substring(0, 8)}]...`);
-        state.signaler.sendAnswer({ type: 'answer', sdp: encryptedAnswer }, remotePeerId, offerId);
+      state.signaler.onConnect = () => {
+        logToConsole("MQTT Signaler connected. Subscribing to offers...");
+        state.signaler.subscribe(state.signaler.topicOffers);
+        
+        logToConsole("Publishing encrypted Answer...");
+        state.signaler.publish(state.signaler.topicAnswers, encryptedAnswer);
+      };
+      
+      state.signaler.onOffer = (encryptedOfferPayload, remotePeerId) => {
+        logToConsole(`Received encrypted Offer from Host [${remotePeerId.substring(0, 8)}]. Republishing encrypted Answer...`);
+        state.signaler.publish(state.signaler.topicAnswers, encryptedAnswer);
       };
       
       state.signaler.onError = (err) => {
-        logToConsole(`Automatic signaling failed: ${err.message}. Falling back to manual mode.`);
+        logToConsole(`Automatic signaling failed: ${err.message || "Disconnected"}. Falling back to manual mode.`);
         showToast("Auto-link failed. Copy-paste code manually.", "warning");
         switchToManualFallback(answerCode);
       };
@@ -491,18 +512,31 @@ async function handleJoinerProcess() {
 }
 
 /**
- * Guest-only fallback helper: reveals the manual answer details when auto-signaling fails.
- * @param {string} answerCode
+ * Clears signaling state, timers, and closes the active signaler.
  */
-function switchToManualFallback(answerCode) {
-  if (state.signaler) {
-    state.signaler.close();
-    state.signaler = null;
+function cleanupSignaling() {
+  if (state.offerIntervalId) {
+    clearInterval(state.offerIntervalId);
+    state.offerIntervalId = null;
   }
   if (state.signalingTimeoutId) {
     clearTimeout(state.signalingTimeoutId);
     state.signalingTimeoutId = null;
   }
+  if (state.signaler) {
+    try {
+      state.signaler.close();
+    } catch (e) {}
+    state.signaler = null;
+  }
+}
+
+/**
+ * Guest-only fallback helper: reveals the manual answer details when auto-signaling fails.
+ * @param {string} answerCode
+ */
+function switchToManualFallback(answerCode) {
+  cleanupSignaling();
   
   elements.joinerSignalingStatus.style.display = "none";
   elements.joinerLocalCode.innerText = answerCode;
@@ -552,14 +586,9 @@ function setupPeerCallbacks(peerObj) {
       pm.send(JSON.stringify(handshake));
       
       // Clean up signaling connections since WebRTC data channel is established
-      if (state.signaler) {
+      if (state.signaler || state.offerIntervalId || state.signalingTimeoutId) {
         logToConsole("Automatic link secure. Closing signaling channels.");
-        state.signaler.close();
-        state.signaler = null;
-      }
-      if (state.signalingTimeoutId) {
-        clearTimeout(state.signalingTimeoutId);
-        state.signalingTimeoutId = null;
+        cleanupSignaling();
       }
       elements.hostSignalingStatus.style.display = "none";
       elements.joinerSignalingStatus.style.display = "none";
@@ -1142,16 +1171,7 @@ function disconnectChat() {
   logToConsole("Disconnecting links...");
   closeMobileSidebar();
   
-  if (state.signaler) {
-    try {
-      state.signaler.close();
-    } catch (e) {}
-    state.signaler = null;
-  }
-  if (state.signalingTimeoutId) {
-    clearTimeout(state.signalingTimeoutId);
-    state.signalingTimeoutId = null;
-  }
+  cleanupSignaling();
   
   state.peers.forEach(peer => {
     try {
@@ -1173,16 +1193,7 @@ function disconnectChat() {
  * Resets state variables and returns UI to landing console overlay.
  */
 function resetToLanding() {
-  if (state.signaler) {
-    try {
-      state.signaler.close();
-    } catch (e) {}
-    state.signaler = null;
-  }
-  if (state.signalingTimeoutId) {
-    clearTimeout(state.signalingTimeoutId);
-    state.signalingTimeoutId = null;
-  }
+  cleanupSignaling();
   
   state.peers = [];
   state.pendingHostPeer = null;

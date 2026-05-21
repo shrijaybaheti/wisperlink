@@ -186,6 +186,8 @@ export class MqttSignaler {
         multiplier *= 128;
       } while ((encodedByte & 128) !== 0);
       
+      const varHeaderStart = offset;
+      
       // Parse topic length
       const topicLen = (bytes[offset] << 8) | bytes[offset + 1];
       offset += 2;
@@ -196,7 +198,7 @@ export class MqttSignaler {
       offset += topicLen;
       
       // Parse message payload
-      const payloadBytes = bytes.subarray(offset);
+      const payloadBytes = bytes.subarray(offset, varHeaderStart + remLen);
       const messageStr = new TextDecoder().decode(payloadBytes);
       
       try {
