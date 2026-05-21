@@ -309,4 +309,104 @@ export function parseBinaryChunk(arrayBuffer) {
   };
 }
 
+/**
+ * Helper to convert a hex string into a Uint8Array.
+ * @param {string} hex
+ * @returns {Uint8Array}
+ */
+function hexToBytes(hex) {
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < bytes.length; i++) {
+    bytes[i] = parseInt(hex.substr(i * 2, 2), 16);
+  }
+  return bytes;
+}
+
+/**
+ * Encrypts a plaintext string with a 16-byte raw hex key using AES-GCM-256.
+ * Returns URL-safe Base64 of combined [12-byte IV + ciphertext].
+ * @param {string} plaintext
+ * @param {string} hexKey
+ * @returns {Promise<string>}
+ */
+export async function encryptWithHexKey(plaintext, hexKey) {
+  const keyData = hexToBytes(hexKey);
+  const key = await window.crypto.subtle.importKey(
+    "raw",
+    keyData,
+    { name: "AES-GCM" },
+    false,
+    ["encrypt", "decrypt"]
+  );
+  
+  const iv = window.crypto.getRandomValues(new Uint8Array(12));
+  const encodedText = new TextEncoder().encode(plaintext);
+  
+  const ciphertext = await window.crypto.subtle.encrypt(
+    {
+      name: "AES-GCM",
+      iv: iv
+    },
+    key,
+    encodedText
+  );
+  
+  const combined = new Uint8Array(iv.length + ciphertext.byteLength);
+  combined.set(iv, 0);
+  combined.set(new Uint8Array(ciphertext), iv.length);
+  
+  let binary = '';
+  for (let i = 0; i < combined.byteLength; i++) {
+    binary += String.fromCharCode(combined[i]);
+  }
+  
+  return btoa(binary)
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+}
+
+/**
+ * Decrypts a URL-safe Base64 combined IV + ciphertext string using a 16-byte hex key.
+ * @param {string} combinedBase64
+ * @param {string} hexKey
+ * @returns {Promise<string>}
+ */
+export async function decryptWithHexKey(combinedBase64, hexKey) {
+  const keyData = hexToBytes(hexKey);
+  const key = await window.crypto.subtle.importKey(
+    "raw",
+    keyData,
+    { name: "AES-GCM" },
+    false,
+    ["encrypt", "decrypt"]
+  );
+  
+  let b64 = combinedBase64.replace(/-/g, '+').replace(/_/g, '/');
+  while (b64.length % 4) {
+    b64 += '=';
+  }
+  
+  const binary = atob(b64);
+  const combined = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    combined[i] = binary.charCodeAt(i);
+  }
+  
+  const iv = combined.slice(0, 12);
+  const ciphertext = combined.slice(12);
+  
+  const decrypted = await window.crypto.subtle.decrypt(
+    {
+      name: "AES-GCM",
+      iv: iv
+    },
+    key,
+    ciphertext
+  );
+  
+  return new TextDecoder().decode(decrypted);
+}
+
+
 

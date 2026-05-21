@@ -20,6 +20,7 @@ import {
 import * as codec from './codec.js';
 import * as crypto from './crypto.js';
 import { PeerManager } from './peer.js';
+import { TrackerSignaler } from './signaling.js';
 
 // NAT Discovery STUN Servers
 const iceConfig = {
@@ -29,13 +30,22 @@ const iceConfig = {
   ]
 };
 
+// Public trackers list for serverless WebRTC signaling
+const trackerUrls = [
+  'wss://tracker.openwebtorrent.com',
+  'wss://tracker.webtorrent.dev',
+  'wss://tracker.btorrent.xyz'
+];
+
 // Application State
 let state = {
   nickname: 'Anonymous',
   isHost: false,
   localKeyPair: null,
   peers: [],            // List of active peer objects: { id, peerManager, sharedKey, nickname }
-  pendingHostPeer: null // Host-only: peer object currently in the handshake process
+  pendingHostPeer: null, // Host-only: peer object currently in the handshake process
+  signaler: null,       // WebSocket signaling manager
+  signalingTimeoutId: null // Timeout tracker for fallback
 };
 
 // Concurrency locks to prevent double-execution during auto-paste or button double-clicks
@@ -48,6 +58,8 @@ let fileReceivers = {};
 // Check for URL invite parameters on load
 const urlParams = new URLSearchParams(window.location.search);
 const inviteParam = urlParams.get('invite');
+const roomParam = urlParams.get('room');
+const hashKey = window.location.hash ? window.location.hash.substring(1) : null;
 
 // Initialize DOM Listeners
 document.addEventListener('DOMContentLoaded', () => {
@@ -168,6 +180,10 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.btnJoinStart.classList.add('orange');
     elements.btnHostStart.classList.remove('orange');
     
+    if (roomParam && hashKey) {
+      logToConsole("Detected automatic signaling parameters.");
+    }
+    
     showToast("Invite link detected in URL!", "info");
   }
 });
@@ -264,14 +280,65 @@ async function generateInvite() {
     const offer = await pm.createOffer();
     const shareableCode = await codec.encode(offer);
     
-    elements.hostLocalCode.innerText = shareableCode;
+    // Generate ephemeral 20-byte room ID and 16-byte symmetric key for automatic signaling
+    const generateRandomHex = (bytesCount) => {
+      const arr = new Uint8Array(bytesCount);
+      window.crypto.getRandomValues(arr);
+      return Array.from(arr, b => b.toString(16).padStart(2, '0')).join('');
+    };
+    const roomIdHex = generateRandomHex(20);
+    const keyHex = generateRandomHex(16);
+    
+    // Encrypt the compressed offer code using the symmetric key
+    logToConsole("Encrypting connection offer parameters...");
+    const encryptedOffer = await crypto.encryptWithHexKey(shareableCode, keyHex);
+    
+    // Generate Invite URL with encrypted offer and key in hash
+    const inviteUrl = `${window.location.origin}${window.location.pathname}?room=${roomIdHex}&invite=${encodeURIComponent(encryptedOffer)}#${keyHex}`;
+    
+    elements.hostLocalCode.innerText = inviteUrl;
     elements.btnHostCopyInvite.disabled = false;
     
-    // Generate Invite URL and draw QR Code
-    const inviteUrl = window.location.origin + window.location.pathname + '?invite=' + encodeURIComponent(shareableCode);
+    // Draw QR Code
     renderQrCode(elements.hostQrContainer, inviteUrl);
     
-    logToConsole(`Invite code generated [${peerId}]. QR Code set to URL.`);
+    logToConsole(`Invite link generated [${peerId}]. QR Code set to URL.`);
+    
+    // Setup automatic WebSocket tracker signaling
+    logToConsole("Initializing automatic signaling relay...");
+    const hostPeerIdHex = generateRandomHex(20);
+    state.signaler = new TrackerSignaler(trackerUrls, roomIdHex, hostPeerIdHex);
+    
+    state.signaler.onLog = (msg) => logToConsole(`[Signaler] ${msg}`);
+    
+    state.signaler.onConnect = () => {
+      state.signaler.sendOffer({ type: 'offer', sdp: encryptedOffer });
+    };
+    
+    state.signaler.onAnswer = async (answerPayload, offerId, remotePeerId) => {
+      try {
+        logToConsole(`Received answer from Guest [${remotePeerId.substring(0, 8)}]. Decrypting...`);
+        const decryptedAnswerCode = await crypto.decryptWithHexKey(answerPayload.sdp, keyHex);
+        
+        const answerDesc = await codec.decode(decryptedAnswerCode);
+        logToConsole("Setting remote answer...");
+        await state.pendingHostPeer.peerManager.acceptAnswer(answerDesc);
+        
+        if (state.signaler) {
+          state.signaler.close();
+          state.signaler = null;
+        }
+      } catch (err) {
+        logToConsole(`Failed to process auto-signaled answer: ${err.message}`);
+      }
+    };
+    
+    state.signaler.onError = (err) => {
+      logToConsole(`Host signaling failed: ${err.message}. Waiting for manual paste.`);
+      showToast("Signaling failed. Paste guest answer manually.", "warning");
+    };
+    
+    state.signaler.connect();
     updateStatus('connecting');
   } catch (err) {
     logToConsole(`Failed to generate offer: ${err.message}`);
@@ -324,8 +391,17 @@ async function handleJoinerProcess() {
   closeMobileSidebar();
   
   try {
+    let decryptedOfferCode = codeText;
+    const isAutoSignaling = !!(roomParam && hashKey);
+    
+    if (isAutoSignaling) {
+      logToConsole("Decrypting invite payload using URL hash key...");
+      decryptedOfferCode = await crypto.decryptWithHexKey(codeText, hashKey);
+      logToConsole("Invite payload decrypted successfully.");
+    }
+    
     logToConsole("Importing Host invite parameters...");
-    const offerDesc = await codec.decode(codeText);
+    const offerDesc = await codec.decode(decryptedOfferCode);
     
     logToConsole("Configuring peer tunnel...");
     const peerId = Math.random().toString(36).substring(2, 9);
@@ -346,18 +422,56 @@ async function handleJoinerProcess() {
     logToConsole("Compressing answer...");
     const answerCode = await codec.encode(answer);
     
-    elements.joinerLocalCode.innerText = answerCode;
-    elements.joinerAnswerSection.style.display = "flex";
-    elements.btnJoinerCopyAnswer.disabled = false;
+    let encryptedAnswer = answerCode;
+    if (isAutoSignaling) {
+      logToConsole("Encrypting answer description...");
+      encryptedAnswer = await crypto.encryptWithHexKey(answerCode, hashKey);
+      logToConsole("Answer description encrypted.");
+    }
     
-    // Draw QR Code of Guest's Answer code
-    renderQrCode(elements.joinerQrContainer, answerCode);
+    elements.joinerLocalCode.innerText = answerCode;
+    
+    // Hide manual instructions if auto signaling is attempted
+    if (!isAutoSignaling) {
+      elements.joinerAnswerSection.style.display = "flex";
+      elements.btnJoinerCopyAnswer.disabled = false;
+      renderQrCode(elements.joinerQrContainer, answerCode);
+    }
     
     // Save host peer temporarily so callbacks have access
     state.peers = [peerObj];
     
-    logToConsole("Answer Code and QR generated. Send back to Host.");
-    updateStatus('connecting');
+    if (isAutoSignaling) {
+      logToConsole("Initiating automatic WebRTC handshake via tracker...");
+      updateStatus('connecting');
+      
+      const guestPeerIdHex = Array.from(window.crypto.getRandomValues(new Uint8Array(20)), b => b.toString(16).padStart(2, '0')).join('');
+      state.signaler = new TrackerSignaler(trackerUrls, roomParam, guestPeerIdHex);
+      state.signaler.onLog = (msg) => logToConsole(`[Signaler] ${msg}`);
+      
+      state.signaler.onOffer = (offerPayload, offerId, remotePeerId) => {
+        logToConsole(`Sending encrypted WebRTC Answer to Host [${remotePeerId.substring(0, 8)}]...`);
+        state.signaler.sendAnswer({ type: 'answer', sdp: encryptedAnswer }, remotePeerId, offerId);
+      };
+      
+      state.signaler.onError = (err) => {
+        logToConsole(`Automatic signaling failed: ${err.message}. Falling back to manual mode.`);
+        showToast("Auto-link failed. Copy-paste code manually.", "warning");
+        switchToManualFallback(answerCode);
+      };
+      
+      // Safety timeout: fallback to manual mode after 8 seconds
+      state.signalingTimeoutId = setTimeout(() => {
+        logToConsole("Automatic signaling timed out. Falling back to manual mode.");
+        showToast("Auto-link timed out. Copy-paste code manually.", "warning");
+        switchToManualFallback(answerCode);
+      }, 8000);
+      
+      state.signaler.connect();
+    } else {
+      logToConsole("Answer Code and QR generated. Send back to Host.");
+      updateStatus('connecting');
+    }
   } catch (err) {
     logToConsole(`Failed to process host invite: ${err.message}`);
     showToast(err.message, "error");
@@ -366,6 +480,30 @@ async function handleJoinerProcess() {
     elements.joinerRemoteCode.disabled = false;
     elements.btnJoinerProcess.disabled = !elements.joinerRemoteCode.value.trim();
   }
+}
+
+/**
+ * Guest-only fallback helper: reveals the manual answer details when auto-signaling fails.
+ * @param {string} answerCode
+ */
+function switchToManualFallback(answerCode) {
+  if (state.signaler) {
+    state.signaler.close();
+    state.signaler = null;
+  }
+  if (state.signalingTimeoutId) {
+    clearTimeout(state.signalingTimeoutId);
+    state.signalingTimeoutId = null;
+  }
+  
+  elements.joinerLocalCode.innerText = answerCode;
+  elements.joinerAnswerSection.style.display = "flex";
+  elements.btnJoinerCopyAnswer.disabled = false;
+  renderQrCode(elements.joinerQrContainer, answerCode);
+  
+  elements.joinerRemoteCode.disabled = false;
+  elements.btnJoinerProcess.disabled = false;
+  updateStatus('connecting');
 }
 
 /**
@@ -403,6 +541,17 @@ function setupPeerCallbacks(peerObj) {
       };
       
       pm.send(JSON.stringify(handshake));
+      
+      // Clean up signaling connections since WebRTC data channel is established
+      if (state.signaler) {
+        logToConsole("Automatic link secure. Closing signaling channels.");
+        state.signaler.close();
+        state.signaler = null;
+      }
+      if (state.signalingTimeoutId) {
+        clearTimeout(state.signalingTimeoutId);
+        state.signalingTimeoutId = null;
+      }
     } catch (err) {
       logToConsole(`[Tunnel:${peerObj.id}] Failed to dispatch handshake: ${err.message}`);
     }
@@ -982,6 +1131,17 @@ function disconnectChat() {
   logToConsole("Disconnecting links...");
   closeMobileSidebar();
   
+  if (state.signaler) {
+    try {
+      state.signaler.close();
+    } catch (e) {}
+    state.signaler = null;
+  }
+  if (state.signalingTimeoutId) {
+    clearTimeout(state.signalingTimeoutId);
+    state.signalingTimeoutId = null;
+  }
+  
   state.peers.forEach(peer => {
     try {
       peer.peerManager.close();
@@ -1002,6 +1162,17 @@ function disconnectChat() {
  * Resets state variables and returns UI to landing console overlay.
  */
 function resetToLanding() {
+  if (state.signaler) {
+    try {
+      state.signaler.close();
+    } catch (e) {}
+    state.signaler = null;
+  }
+  if (state.signalingTimeoutId) {
+    clearTimeout(state.signalingTimeoutId);
+    state.signalingTimeoutId = null;
+  }
+  
   state.peers = [];
   state.pendingHostPeer = null;
   state.localKeyPair = null;
