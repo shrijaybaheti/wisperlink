@@ -246,7 +246,8 @@
 
 /* --- Sidebar Content Components --- */
 .sidebar-header {
-  padding: var(--space-md) var(--space-lg);
+  height: var(--header-height);
+  padding: 0 var(--space-lg);
   border-bottom: var(--rule-hair) solid var(--color-rule);
   background: var(--color-paper-2);
   backdrop-filter: blur(16px);
@@ -254,6 +255,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  box-sizing: border-box;
 }
 
 .sidebar-title {
@@ -514,7 +516,8 @@
 
 /* --- Chat Main Window Components (Modern Messenger Header) --- */
 .chat-header {
-  padding: var(--space-sm) var(--space-lg);
+  height: var(--header-height);
+  padding: 0 var(--space-lg);
   border-bottom: var(--rule-hair) solid var(--color-rule);
   display: flex;
   justify-content: space-between;
@@ -522,6 +525,7 @@
   background: var(--color-paper-2);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
+  box-sizing: border-box;
 }
 
 .chat-room-info {

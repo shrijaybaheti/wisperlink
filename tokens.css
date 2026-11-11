@@ -54,6 +54,7 @@
   --radius-bubble: 18px;
   --radius-pill: 9999px;
   --rule-hair: 1px;
+  --header-height: 64px;
   
   --shadow-card: 0 24px 48px -12px oklch(0% 0 0 / 0.60), 0 0 0 1px oklch(100% 0.005 260 / 0.20) inset;
   --shadow-bubble: 0 6px 20px -3px oklch(0% 0 0 / 0.40), 0 0 0 1px oklch(100% 0.005 260 / 0.18) inset;
