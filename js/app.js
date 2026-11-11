@@ -76,6 +76,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // Landing page routing actions
   elements.btnHostStart.addEventListener('click', () => startSetup(true));
   elements.btnJoinStart.addEventListener('click', () => startSetup(false));
+  if (elements.btnLandingJoinNow) {
+    elements.btnLandingJoinNow.addEventListener('click', () => startSetup(false));
+  }
   
   // Disconnect session action
   elements.btnDisconnect.addEventListener('click', disconnectChat);
@@ -128,10 +131,14 @@ document.addEventListener('DOMContentLoaded', () => {
       handleHostConnect();
     }
   });
-  elements.joinerRemoteCode.addEventListener('keydown', (e) => {
+  elements.inputNickname.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      handleJoinerProcess();
+      if (inviteParam && roomParam && hashKey) {
+        startSetup(false);
+      } else {
+        startSetup(true);
+      }
     }
   });
   
@@ -188,9 +195,13 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.btnHostStart.classList.remove('orange');
     
     if (roomParam && hashKey) {
-      logToConsole("Detected automatic signaling parameters. Joining automatically...");
-      showToast("Joining chat session...", "info");
-      startSetup(false);
+      if (elements.landingInvitePrompt) {
+        elements.landingInvitePrompt.style.display = 'flex';
+      }
+      elements.btnJoinStart.style.display = 'none';
+      elements.btnHostStart.style.display = 'none';
+      elements.inputNickname.focus();
+      showToast("Invite ready! Enter your nickname and join.", "info");
     } else {
       showToast("Invite link detected in URL!", "info");
     }

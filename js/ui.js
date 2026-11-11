@@ -11,6 +11,8 @@ export const elements = {
   inputNickname: document.getElementById('input-nickname'),
   btnHostStart: document.getElementById('btn-host-start'),
   btnJoinStart: document.getElementById('btn-join-start'),
+  landingInvitePrompt: document.getElementById('landing-invite-prompt'),
+  btnLandingJoinNow: document.getElementById('btn-landing-join-now'),
   
   statusDot: document.getElementById('status-dot'),
   statusText: document.getElementById('status-text'),
