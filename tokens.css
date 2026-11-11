@@ -9,53 +9,53 @@
   --container: 1440px; --gutter: 64px; --gap-columns: 32px; --section-gap-s: 120px; --section-gap: 144px; --section-gap-l: 176px;
   --z-base: 1; --z-raised: 10; --z-dropdown: 100; --z-sticky: 200; --z-sticky-nav: 300; --z-modal: 400; --z-toast: 500; --z-tooltip: 600;
   
-  /* Liquid Glass Theme: Translucent Glass & Frosted Sage */
-  --color-paper: oklch(95% 0.02 150);
-  --color-paper-2: oklch(98% 0.01 150 / 0.72);
-  --color-paper-3: oklch(92% 0.025 150 / 0.55);
-  --color-liquid-glow-1: oklch(92% 0.05 145 / 0.5);
-  --color-liquid-glow-2: oklch(90% 0.06 160 / 0.4);
-  --color-liquid-glow-3: oklch(93% 0.04 140 / 0.4);
-  --color-liquid-glow-4: oklch(91% 0.05 155 / 0.5);
+  /* Apple iOS/macOS Liquid Glass: Frosted Crystal & Neutral Cool */
+  --color-paper: oklch(96% 0.008 240);
+  --color-paper-2: oklch(100% 0.005 240 / 0.70);
+  --color-paper-3: oklch(93% 0.012 240 / 0.50);
+  --color-liquid-glow-1: oklch(88% 0.08 245 / 0.40);
+  --color-liquid-glow-2: oklch(91% 0.06 250 / 0.35);
+  --color-liquid-glow-3: oklch(89% 0.07 240 / 0.35);
+  --color-liquid-glow-4: oklch(92% 0.05 245 / 0.35);
   
-  /* Ink & Typography */
-  --color-ink: oklch(18% 0.04 155);
-  --color-ink-2: oklch(28% 0.035 155);
-  --color-muted: oklch(42% 0.03 155);
+  /* Ink & Typography: Crisp Neutral Slate */
+  --color-ink: oklch(18% 0.02 260);
+  --color-ink-2: oklch(30% 0.02 260);
+  --color-muted: oklch(46% 0.015 260);
   
-  /* Frosted Glass Tinted Rules */
-  --color-rule: oklch(20% 0.035 155 / 0.09);
-  --color-rule-2: oklch(20% 0.035 155 / 0.15);
+  /* Crystal Glass Edges & Specular Borders */
+  --color-rule: oklch(100% 0.005 240 / 0.50);
+  --color-rule-2: oklch(20% 0.02 260 / 0.12);
   
-  /* Emerald Glass Accent */
-  --color-accent: oklch(46% 0.17 152);
-  --color-accent-ink: oklch(99% 0.005 152);
-  --color-accent-soft: oklch(92% 0.05 150 / 0.45);
-  --color-focus: oklch(46% 0.17 152);
+  /* Liquid Royal Azure Accent */
+  --color-accent: oklch(52% 0.22 255);
+  --color-accent-ink: oklch(99% 0.005 255);
+  --color-accent-soft: oklch(92% 0.06 255 / 0.40);
+  --color-focus: oklch(52% 0.22 255);
   
-  --color-cool: oklch(55% 0.12 165);
-  --color-cool-soft: oklch(93% 0.035 165);
-  --color-ok: oklch(50% 0.17 150);
+  --color-cool: oklch(55% 0.16 235);
+  --color-cool-soft: oklch(93% 0.04 235);
+  --color-ok: oklch(54% 0.18 150);
   --color-ok-soft: oklch(93% 0.045 150);
   --color-bad: oklch(56% 0.22 25);
   --color-bad-soft: oklch(93.5% 0.045 25);
   
-  --font-display: "Host Grotesk", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-body: var(--font-display);
-  --font-outlier: "Atkinson Hyperlegible Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Host Grotesk", system-ui, sans-serif;
+  --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Host Grotesk", system-ui, sans-serif;
+  --font-outlier: "SF Mono", "Atkinson Hyperlegible Mono", ui-monospace, Menlo, monospace;
   
-  --radius-card: 20px;
+  --radius-card: 22px;
   --radius-bubble: 18px;
   --radius-pill: 9999px;
   --rule-hair: 1px;
   
-  --shadow-card: 0 20px 40px -12px oklch(20% 0.04 155 / 0.10), 0 0 0 1px oklch(100% 0 0 / 0.5) inset;
-  --shadow-bubble: 0 4px 14px -3px oklch(20% 0.04 155 / 0.06), 0 0 0 1px oklch(100% 0 0 / 0.4) inset;
-  --shadow-floating: 0 16px 36px -8px oklch(20% 0.04 155 / 0.14), 0 0 0 1px oklch(100% 0 0 / 0.6) inset;
-  --shadow-btn: 0 4px 12px -2px oklch(46% 0.17 152 / 0.25);
-  --shadow-btn-hover: 0 6px 18px -2px oklch(46% 0.17 152 / 0.35);
+  --shadow-card: 0 24px 48px -12px oklch(20% 0.03 260 / 0.12), 0 0 0 1px oklch(100% 0 0 / 0.7) inset;
+  --shadow-bubble: 0 4px 16px -2px oklch(20% 0.03 260 / 0.07), 0 0 0 1px oklch(100% 0 0 / 0.5) inset;
+  --shadow-floating: 0 20px 40px -10px oklch(20% 0.03 260 / 0.18), 0 0 0 1px oklch(100% 0 0 / 0.8) inset;
+  --shadow-btn: 0 4px 14px -2px oklch(52% 0.22 255 / 0.35);
+  --shadow-btn-hover: 0 8px 22px -3px oklch(52% 0.22 255 / 0.45);
   
-  --color-accent-code: oklch(98% 0.01 152 / 0.2);
+  --color-accent-code: oklch(98% 0.01 255 / 0.2);
   --tracking-display: -0.025em;
   --display-weight: 600;
 }
