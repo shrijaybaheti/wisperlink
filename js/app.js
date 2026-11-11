@@ -54,7 +54,9 @@ let state = {
   offerIntervalId: null, // Interval for host periodic offer republishing
   answerIntervalId: null, // Interval for guest periodic answer republishing
   roomKeyHex: null,      // Symmetric key for room encrypted relay fallback
-  securedPeers: new Set()
+  securedPeers: new Set(),
+  chatHistory: [],
+  seenMessageIds: new Set()
 };
 
 // Concurrency locks to prevent double-execution during auto-paste or button double-clicks
@@ -710,8 +712,21 @@ function setupPeerCallbacks(peerObj) {
           }
           
           broadcastMemberList();
+          if (state.chatHistory.length > 0) {
+            try {
+              peerObj.peerManager.send(JSON.stringify({
+                type: 'history-sync',
+                history: state.chatHistory
+              }));
+            } catch (e) {}
+          }
         } else {
           state.peers = [peerObj];
+          try {
+            peerObj.peerManager.send(JSON.stringify({
+              type: 'history-req'
+            }));
+          } catch (e) {}
         }
         
         refreshMembersUI();
@@ -722,6 +737,14 @@ function setupPeerCallbacks(peerObj) {
         }
         
       } else if (payload.type === 'message') {
+        const msgId = payload.msgId;
+        if (msgId && state.seenMessageIds.has(msgId)) {
+          return;
+        }
+        if (msgId) {
+          state.seenMessageIds.add(msgId);
+        }
+
         if (!peerObj.sharedKey) {
           console.warn("Dropped raw transmission: key exchange incomplete.");
           return;
@@ -730,11 +753,37 @@ function setupPeerCallbacks(peerObj) {
         const decrypted = await crypto.decrypt(peerObj.sharedKey, payload.ciphertext);
         
         if (state.isHost) {
+          state.chatHistory.push({
+            msgId: msgId || Math.random().toString(36).substring(2, 9),
+            sender: peerObj.nickname,
+            text: decrypted
+          });
+          if (state.chatHistory.length > 100) {
+            state.chatHistory.shift();
+          }
           addMessage(decrypted, peerObj.nickname, false);
-          relayMessage(peerObj.id, peerObj.nickname, decrypted);
+          relayMessage(peerObj.id, peerObj.nickname, decrypted, msgId);
         } else {
           const senderName = payload.sender || peerObj.nickname;
           addMessage(decrypted, senderName, false);
+        }
+      } else if (payload.type === 'history-req') {
+        if (state.isHost && state.chatHistory.length > 0) {
+          try {
+            peerObj.peerManager.send(JSON.stringify({
+              type: 'history-sync',
+              history: state.chatHistory
+            }));
+          } catch (e) {}
+        }
+      } else if (payload.type === 'history-sync') {
+        if (!state.isHost && Array.isArray(payload.history)) {
+          for (const item of payload.history) {
+            if (item.msgId && !state.seenMessageIds.has(item.msgId)) {
+              state.seenMessageIds.add(item.msgId);
+              addMessage(item.text, item.sender, item.sender === state.nickname);
+            }
+          }
         }
       } else if (payload.type === 'file-start') {
         const fileId = payload.fileId;
@@ -813,7 +862,7 @@ function setupPeerCallbacks(peerObj) {
  * @param {string} senderName Text nickname of the sender
  * @param {string} text Message contents
  */
-async function relayMessage(senderId, senderName, text) {
+async function relayMessage(senderId, senderName, text, msgId) {
   logToConsole(`Relaying message from [${senderName}] to active nodes...`);
   
   for (const peer of state.peers) {
@@ -828,6 +877,7 @@ async function relayMessage(senderId, senderName, text) {
         const ciphertext = await crypto.encrypt(peer.sharedKey, text);
         const payload = {
           type: 'message',
+          msgId: msgId,
           sender: senderName,
           ciphertext: ciphertext
         };
@@ -840,6 +890,7 @@ async function relayMessage(senderId, senderName, text) {
 
   sendRelayPacket({
     type: 'message',
+    msgId: msgId,
     sender: senderName,
     originSenderId: senderId,
     text: text
@@ -909,6 +960,13 @@ async function handleIncomingRelayMessage(encryptedPayload, senderPeerId) {
             name: state.nickname
           });
           broadcastMemberList();
+          if (state.chatHistory.length > 0) {
+            sendRelayPacket({
+              type: 'history-sync',
+              targetPeerId: senderPeerId,
+              history: state.chatHistory
+            });
+          }
         }
       }
     } else if (packet.type === 'relay-ack') {
@@ -946,6 +1004,9 @@ async function handleIncomingRelayMessage(encryptedPayload, senderPeerId) {
           addSystemInfo(`🔒 Link secured with ${relayPeer.nickname}`);
           showToast(`Connected with ${relayPeer.nickname}`, "info");
         }
+        sendRelayPacket({
+          type: 'history-req'
+        });
       } else {
         existing.nickname = packet.name || 'Host';
         refreshMembersUI();
@@ -959,8 +1020,36 @@ async function handleIncomingRelayMessage(encryptedPayload, senderPeerId) {
         updatePeerList(membersList);
         elements.chatRoomName.innerText = `Grid Session (${packet.list.length} active)`;
       }
+    } else if (packet.type === 'history-req') {
+      if (state.isHost && state.chatHistory.length > 0) {
+        sendRelayPacket({
+          type: 'history-sync',
+          targetPeerId: senderPeerId,
+          history: state.chatHistory
+        });
+      }
+    } else if (packet.type === 'history-sync') {
+      if (!state.isHost && Array.isArray(packet.history)) {
+        if (!packet.targetPeerId || packet.targetPeerId === state.signaler.peerId) {
+          for (const item of packet.history) {
+            if (item.msgId && !state.seenMessageIds.has(item.msgId)) {
+              state.seenMessageIds.add(item.msgId);
+              addMessage(item.text, item.sender, item.sender === state.nickname);
+            }
+          }
+        }
+      }
     } else if (packet.type === 'message') {
       const senderName = packet.sender || 'Peer';
+      const msgId = packet.msgId;
+
+      if (msgId && state.seenMessageIds.has(msgId)) {
+        return;
+      }
+      if (msgId) {
+        state.seenMessageIds.add(msgId);
+      }
+
       if (packet.originSenderId && packet.originSenderId === state.signaler.peerId) {
         return;
       }
@@ -969,6 +1058,14 @@ async function handleIncomingRelayMessage(encryptedPayload, senderPeerId) {
       }
       addMessage(packet.text, senderName, false);
       if (state.isHost) {
+        state.chatHistory.push({
+          msgId: msgId || Math.random().toString(36).substring(2, 9),
+          sender: senderName,
+          text: packet.text
+        });
+        if (state.chatHistory.length > 100) {
+          state.chatHistory.shift();
+        }
         for (const peer of state.peers) {
           if (peer.isRelay) continue;
           if (peer.id === senderPeerId) continue;
@@ -977,6 +1074,7 @@ async function handleIncomingRelayMessage(encryptedPayload, senderPeerId) {
               crypto.encrypt(peer.sharedKey, packet.text).then(ciphertext => {
                 peer.peerManager.send(JSON.stringify({
                   type: 'message',
+                  msgId: msgId,
                   sender: senderName,
                   ciphertext: ciphertext
                 }));
@@ -986,6 +1084,7 @@ async function handleIncomingRelayMessage(encryptedPayload, senderPeerId) {
         }
         sendRelayPacket({
           type: 'message',
+          msgId: msgId,
           sender: senderName,
           originSenderId: packet.originSenderId || senderPeerId,
           text: packet.text
@@ -1009,6 +1108,20 @@ async function sendMessage() {
     return;
   }
   
+  const msgId = Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
+  state.seenMessageIds.add(msgId);
+
+  if (state.isHost) {
+    state.chatHistory.push({
+      msgId: msgId,
+      sender: state.nickname,
+      text: text
+    });
+    if (state.chatHistory.length > 100) {
+      state.chatHistory.shift();
+    }
+  }
+
   try {
     let sentViaRelay = false;
     for (const peer of state.peers) {
@@ -1016,8 +1129,9 @@ async function sendMessage() {
         if (!sentViaRelay) {
           await sendRelayPacket({
             type: 'message',
+            msgId: msgId,
             sender: state.nickname,
-            originSenderId: state.signaler.peerId,
+            originSenderId: state.signaler ? state.signaler.peerId : null,
             text: text
           });
           sentViaRelay = true;
@@ -1026,6 +1140,7 @@ async function sendMessage() {
         const ciphertext = await crypto.encrypt(peer.sharedKey, text);
         const payload = {
           type: 'message',
+          msgId: msgId,
           sender: state.nickname,
           ciphertext: ciphertext
         };
