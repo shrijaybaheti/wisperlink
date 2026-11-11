@@ -9,30 +9,33 @@
   --container: 1440px; --gutter: 64px; --gap-columns: 32px; --section-gap-s: 120px; --section-gap: 144px; --section-gap-l: 176px;
   --z-base: 1; --z-raised: 10; --z-dropdown: 100; --z-sticky: 200; --z-sticky-nav: 300; --z-modal: 400; --z-toast: 500; --z-tooltip: 600;
   
-  /* Light Green Theme: Sage & Mint Neutral Papers */
-  --color-paper: oklch(96% 0.018 145);
-  --color-paper-2: oklch(98.8% 0.008 145);
-  --color-paper-3: oklch(92.5% 0.024 145);
-  --color-pattern-dot: oklch(22% 0.035 155 / 0.06);
+  /* Liquid Glass Theme: Translucent Glass & Frosted Sage */
+  --color-paper: oklch(95% 0.02 150);
+  --color-paper-2: oklch(98% 0.01 150 / 0.72);
+  --color-paper-3: oklch(92% 0.025 150 / 0.55);
+  --color-liquid-glow-1: oklch(92% 0.05 145 / 0.5);
+  --color-liquid-glow-2: oklch(90% 0.06 160 / 0.4);
+  --color-liquid-glow-3: oklch(93% 0.04 140 / 0.4);
+  --color-liquid-glow-4: oklch(91% 0.05 155 / 0.5);
   
   /* Ink & Typography */
-  --color-ink: oklch(20% 0.035 155);
-  --color-ink-2: oklch(30% 0.03 155);
-  --color-muted: oklch(44% 0.025 155);
+  --color-ink: oklch(18% 0.04 155);
+  --color-ink-2: oklch(28% 0.035 155);
+  --color-muted: oklch(42% 0.03 155);
   
-  /* Subtle Green Tinted Rules */
-  --color-rule: oklch(89% 0.016 145);
-  --color-rule-2: oklch(82% 0.022 145);
+  /* Frosted Glass Tinted Rules */
+  --color-rule: oklch(20% 0.035 155 / 0.09);
+  --color-rule-2: oklch(20% 0.035 155 / 0.15);
   
-  /* Emerald / Mint Accent */
-  --color-accent: oklch(44% 0.16 152);
-  --color-accent-ink: oklch(98.5% 0.008 152);
-  --color-accent-soft: oklch(93.5% 0.04 150);
-  --color-focus: oklch(44% 0.16 152);
+  /* Emerald Glass Accent */
+  --color-accent: oklch(46% 0.17 152);
+  --color-accent-ink: oklch(99% 0.005 152);
+  --color-accent-soft: oklch(92% 0.05 150 / 0.45);
+  --color-focus: oklch(46% 0.17 152);
   
   --color-cool: oklch(55% 0.12 165);
   --color-cool-soft: oklch(93% 0.035 165);
-  --color-ok: oklch(52% 0.16 150);
+  --color-ok: oklch(50% 0.17 150);
   --color-ok-soft: oklch(93% 0.045 150);
   --color-bad: oklch(56% 0.22 25);
   --color-bad-soft: oklch(93.5% 0.045 25);
@@ -41,16 +44,16 @@
   --font-body: var(--font-display);
   --font-outlier: "Atkinson Hyperlegible Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
   
-  --radius-card: 16px;
-  --radius-bubble: 16px;
+  --radius-card: 20px;
+  --radius-bubble: 18px;
   --radius-pill: 9999px;
   --rule-hair: 1px;
   
-  --shadow-card: 0 10px 30px -4px oklch(22% 0.035 155 / 0.07), 0 4px 12px -2px oklch(22% 0.035 155 / 0.03);
-  --shadow-bubble: 0 2px 8px -2px oklch(22% 0.035 155 / 0.05), 0 1px 2px oklch(22% 0.035 155 / 0.03);
-  --shadow-floating: 0 12px 32px -6px oklch(22% 0.035 155 / 0.10), 0 4px 12px oklch(22% 0.035 155 / 0.04);
-  --shadow-btn: 0 2px 6px -1px oklch(22% 0.035 155 / 0.08);
-  --shadow-btn-hover: 0 4px 12px -2px oklch(22% 0.035 155 / 0.16);
+  --shadow-card: 0 20px 40px -12px oklch(20% 0.04 155 / 0.10), 0 0 0 1px oklch(100% 0 0 / 0.5) inset;
+  --shadow-bubble: 0 4px 14px -3px oklch(20% 0.04 155 / 0.06), 0 0 0 1px oklch(100% 0 0 / 0.4) inset;
+  --shadow-floating: 0 16px 36px -8px oklch(20% 0.04 155 / 0.14), 0 0 0 1px oklch(100% 0 0 / 0.6) inset;
+  --shadow-btn: 0 4px 12px -2px oklch(46% 0.17 152 / 0.25);
+  --shadow-btn-hover: 0 6px 18px -2px oklch(46% 0.17 152 / 0.35);
   
   --color-accent-code: oklch(98% 0.01 152 / 0.2);
   --tracking-display: -0.025em;
