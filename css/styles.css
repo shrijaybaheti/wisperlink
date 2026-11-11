@@ -728,7 +728,7 @@
 
 /* Modern Messaging Input Bar */
 .chat-input-bar {
-  padding: var(--space-sm) var(--space-lg) var(--space-md);
+  padding: var(--space-sm) var(--space-lg);
   border-top: var(--rule-hair) solid var(--color-rule);
   background: var(--color-paper-2);
   backdrop-filter: blur(20px);
@@ -736,9 +736,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-xs);
-  max-width: 900px;
   width: 100%;
-  margin: 0 auto;
   box-sizing: border-box;
 }
 
@@ -758,15 +756,21 @@
   outline: none;
   font-family: var(--font-body);
   border-radius: var(--radius-pill);
-  transition: border-color var(--dur-short) var(--ease-out);
+  box-sizing: border-box;
+  transition: border-color var(--dur-short) var(--ease-out), background-color var(--dur-short) var(--ease-out), box-shadow var(--dur-short) var(--ease-out);
+}
+
+.input-message:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 1px;
 }
 
 .input-message:disabled {
-  background: var(--color-paper);
+  background: var(--color-paper-3);
   border-color: var(--color-rule);
   color: var(--color-muted);
   cursor: not-allowed;
-  opacity: 0.7;
+  opacity: 0.6;
 }
 
 .input-message:focus-visible {
