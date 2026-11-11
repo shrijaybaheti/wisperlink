@@ -70,6 +70,7 @@ let fileReceivers = {};
 const urlParams = new URLSearchParams(window.location.search);
 const inviteParam = urlParams.get('invite');
 const roomParam = urlParams.get('room');
+const brokerParam = urlParams.get('b');
 const hashKey = window.location.hash ? window.location.hash.substring(1) : null;
 
 // Initialize DOM Listeners
@@ -453,7 +454,8 @@ async function handleJoinerProcess() {
       state.localKeyPair = await crypto.generateKeyPair();
     }
     
-    let autoBroker = parsedUrl.searchParams.get('b') || null;
+    let invitePayload = rawInput;
+    let autoBroker = brokerParam || null;
     let autoRoom = roomParam;
     let autoHash = hashKey;
     
