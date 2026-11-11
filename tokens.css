@@ -1,5 +1,5 @@
 :root {
-  color-scheme: light;
+  color-scheme: dark;
   --space-3xs: 2px; --space-2xs: 4px; --space-xs: 8px; --space-sm: 12px; --space-md: 16px; --space-lg: 24px; --space-xl: 40px; --space-2xl: 64px; --space-3xl: 96px; --space-4xl: 144px;
   --text-xs: 0.75rem; --text-sm: 0.875rem; --text-md: 1rem; --text-lg: 1.15rem; --text-xl: 1.35rem; --text-2xl: 1.65rem; --text-3xl: 2rem;
   --text-display-s: 1.35rem; --text-display: 1.65rem; --text-section: 1.15rem; --text-title: 1rem; --text-lead: 1rem;
@@ -9,32 +9,42 @@
   --container: 1440px; --gutter: 64px; --gap-columns: 32px; --section-gap-s: 120px; --section-gap: 144px; --section-gap-l: 176px;
   --z-base: 1; --z-raised: 10; --z-dropdown: 100; --z-sticky: 200; --z-sticky-nav: 300; --z-modal: 400; --z-toast: 500; --z-tooltip: 600;
   
-  --color-paper: oklch(20% 0.04 250);
-  --color-paper-2: oklch(100% 0.005 250 / 0.16);
-  --color-paper-3: oklch(100% 0.005 250 / 0.09);
-  --color-liquid-glow-1: oklch(32% 0.12 250);
-  --color-liquid-glow-2: oklch(22% 0.08 245);
-  --color-liquid-glow-3: oklch(16% 0.05 250);
-  --color-liquid-glow-4: oklch(12% 0.03 250);
+  --color-paper: oklch(14% 0.005 260);
+  --color-paper-2: oklch(100% 0.005 260 / 0.08);
+  --color-paper-3: oklch(100% 0.005 260 / 0.04);
+  --color-liquid-glow-1: oklch(22% 0.008 260);
+  --color-liquid-glow-2: oklch(15% 0.005 260);
+  --color-liquid-glow-3: oklch(10% 0.004 260);
+  --color-liquid-glow-4: oklch(6% 0.002 260);
   
-  --color-ink: oklch(99% 0.005 250);
-  --color-ink-2: oklch(100% 0.005 250 / 0.85);
-  --color-muted: oklch(100% 0.005 250 / 0.65);
+  --color-ink: oklch(99% 0.005 260);
+  --color-ink-2: oklch(100% 0.005 260 / 0.88);
+  --color-muted: oklch(100% 0.005 260 / 0.60);
   
-  --color-rule: oklch(100% 0.005 250 / 0.22);
-  --color-rule-2: oklch(100% 0.005 250 / 0.35);
+  --color-rule: oklch(100% 0.005 260 / 0.16);
+  --color-rule-2: oklch(100% 0.005 260 / 0.28);
   
-  --color-accent: oklch(54% 0.24 252);
-  --color-accent-ink: oklch(99% 0.005 250);
-  --color-accent-soft: oklch(54% 0.24 252 / 0.20);
-  --color-focus: oklch(54% 0.24 252);
+  --color-accent: oklch(25% 0.005 260);
+  --color-accent-ink: oklch(99% 0.005 260);
+  --color-accent-soft: oklch(100% 0.005 260 / 0.10);
+  --color-focus: oklch(99% 0.005 260);
   
-  --color-cool: oklch(62% 0.18 245);
-  --color-cool-soft: oklch(100% 0.005 250 / 0.15);
+  --color-glass-btn: oklch(100% 0.005 260 / 0.10);
+  --color-glass-btn-hover: oklch(100% 0.005 260 / 0.18);
+  --color-glass-primary: oklch(100% 0.005 260 / 0.22);
+  --color-glass-primary-hover: oklch(100% 0.005 260 / 0.32);
+  --color-glass-border-strong: oklch(100% 0.005 260 / 0.38);
+  --color-glass-border-hover: oklch(100% 0.005 260 / 0.50);
+  
+  --shadow-btn-subtle: 0 4px 16px -2px oklch(0% 0 0 / 0.35), 0 1px 0 0 oklch(100% 0.005 260 / 0.20) inset;
+  --shadow-btn-subtle-hover: 0 6px 20px -2px oklch(0% 0 0 / 0.45), 0 1px 0 0 oklch(100% 0.005 260 / 0.30) inset;
+  
+  --color-cool: oklch(75% 0.005 260);
+  --color-cool-soft: oklch(100% 0.005 260 / 0.10);
   --color-ok: oklch(68% 0.18 150);
-  --color-ok-soft: oklch(100% 0.005 250 / 0.15);
+  --color-ok-soft: oklch(100% 0.005 260 / 0.10);
   --color-bad: oklch(62% 0.22 25);
-  --color-bad-soft: oklch(100% 0.005 250 / 0.15);
+  --color-bad-soft: oklch(100% 0.005 260 / 0.10);
   
   --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro", system-ui, sans-serif;
   --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro", system-ui, sans-serif;
@@ -45,13 +55,13 @@
   --radius-pill: 9999px;
   --rule-hair: 1px;
   
-  --shadow-card: 0 24px 48px -12px oklch(0% 0 0 / 0.40), 0 0 0 1px oklch(100% 0.005 250 / 0.25) inset;
-  --shadow-bubble: 0 6px 20px -3px oklch(0% 0 0 / 0.25), 0 0 0 1px oklch(100% 0.005 250 / 0.20) inset;
-  --shadow-floating: 0 32px 64px -16px oklch(0% 0 0 / 0.50), 0 0 0 1px oklch(100% 0.005 250 / 0.35) inset;
-  --shadow-btn: 0 6px 16px -2px oklch(54% 0.24 252 / 0.35), 0 1px 1px 0 oklch(100% 0.005 250 / 0.3) inset;
-  --shadow-btn-hover: 0 10px 24px -2px oklch(54% 0.24 252 / 0.50), 0 1px 1px 0 oklch(100% 0.005 250 / 0.4) inset;
+  --shadow-card: 0 24px 48px -12px oklch(0% 0 0 / 0.60), 0 0 0 1px oklch(100% 0.005 260 / 0.20) inset;
+  --shadow-bubble: 0 6px 20px -3px oklch(0% 0 0 / 0.40), 0 0 0 1px oklch(100% 0.005 260 / 0.18) inset;
+  --shadow-floating: 0 32px 64px -16px oklch(0% 0 0 / 0.70), 0 0 0 1px oklch(100% 0.005 260 / 0.28) inset;
+  --shadow-btn: 0 8px 24px -4px oklch(0% 0 0 / 0.50), 0 1px 1px 0 oklch(100% 0.005 260 / 0.35) inset, 0 0 0 1px oklch(100% 0.005 260 / 0.20) inset;
+  --shadow-btn-hover: 0 12px 32px -4px oklch(0% 0 0 / 0.65), 0 1px 2px 0 oklch(100% 0.005 260 / 0.50) inset, 0 0 0 1px oklch(100% 0.005 260 / 0.35) inset;
   
-  --color-accent-code: oklch(100% 0.005 250 / 0.25);
+  --color-accent-code: oklch(100% 0.005 260 / 0.15);
   --tracking-display: -0.025em;
   --display-weight: 600;
 }

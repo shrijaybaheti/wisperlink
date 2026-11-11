@@ -154,7 +154,9 @@
 
 /* --- Buttons --- */
 .btn-console {
-  background: var(--color-paper);
+  background: var(--color-glass-btn);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: var(--rule-hair) solid var(--color-rule);
   color: var(--color-ink);
   font-family: var(--font-body);
@@ -164,7 +166,8 @@
   cursor: pointer;
   outline: none;
   border-radius: var(--radius-pill);
-  transition: background-color var(--dur-short) var(--ease-out), border-color var(--dur-short) var(--ease-out), transform var(--dur-micro) var(--ease-out);
+  box-shadow: var(--shadow-btn-subtle);
+  transition: background-color var(--dur-short) var(--ease-out), border-color var(--dur-short) var(--ease-out), transform var(--dur-micro) var(--ease-out), box-shadow var(--dur-short) var(--ease-out);
   display: inline-flex;
   justify-content: center;
   align-items: center;
@@ -173,8 +176,9 @@
 }
 
 .btn-console:hover {
-  background: var(--color-paper-3);
+  background: var(--color-glass-btn-hover);
   border-color: var(--color-rule-2);
+  box-shadow: var(--shadow-btn-subtle-hover);
 }
 
 .btn-console:focus-visible {
@@ -187,15 +191,19 @@
 }
 
 .btn-console.orange {
-  background: var(--color-accent);
-  border-color: var(--color-accent);
+  background: var(--color-glass-primary);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: var(--rule-hair) solid var(--color-glass-border-strong);
   color: var(--color-accent-ink);
+  box-shadow: var(--shadow-btn);
 }
 
 .btn-console.orange:hover {
-  background: var(--color-ink);
-  border-color: var(--color-ink);
-  color: var(--color-paper);
+  background: var(--color-glass-primary-hover);
+  border-color: var(--color-glass-border-hover);
+  color: var(--color-ink);
+  box-shadow: var(--shadow-btn-hover);
 }
 
 .btn-console:disabled {
@@ -608,16 +616,20 @@
 }
 
 .msg-block.me .msg-text {
-  background: var(--color-accent);
-  border-color: var(--color-accent);
-  color: var(--color-accent-ink);
+  background: var(--color-glass-primary);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-color: var(--color-glass-border-strong);
+  color: var(--color-ink);
   border-bottom-right-radius: var(--space-3xs);
 }
 
 .msg-block.peer .msg-text {
   background: var(--color-paper-2);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border-color: var(--color-rule);
-  color: var(--color-ink);
+  color: var(--color-ink-2);
   border-bottom-left-radius: var(--space-3xs);
 }
 
@@ -769,9 +781,11 @@
 }
 
 .btn-send {
-  background: var(--color-accent);
-  border: none;
-  color: var(--color-accent-ink);
+  background: var(--color-glass-primary);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: var(--rule-hair) solid var(--color-glass-border-strong);
+  color: var(--color-ink);
   cursor: pointer;
   display: flex;
   justify-content: center;
@@ -779,14 +793,15 @@
   width: 40px;
   height: 40px;
   border-radius: var(--radius-pill);
-  transition: background-color var(--dur-short) var(--ease-out), color var(--dur-short) var(--ease-out), transform var(--dur-micro) var(--ease-out), box-shadow var(--dur-short) var(--ease-out);
+  transition: background-color var(--dur-short) var(--ease-out), color var(--dur-short) var(--ease-out), transform var(--dur-micro) var(--ease-out), box-shadow var(--dur-short) var(--ease-out), border-color var(--dur-short) var(--ease-out);
   flex-shrink: 0;
   box-shadow: var(--shadow-btn);
 }
 
 .btn-send:hover:not(:disabled) {
-  background: var(--color-ink);
-  color: var(--color-paper);
+  background: var(--color-glass-primary-hover);
+  border-color: var(--color-glass-border-hover);
+  color: var(--color-ink);
   transform: scale(1.06);
   box-shadow: var(--shadow-btn-hover);
 }
