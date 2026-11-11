@@ -25,6 +25,8 @@ export class MqttSignaler {
     this.isConnected = false;
     this.topicOffers = `wisperlink/rooms/${this.infoHash}/offers`;
     this.topicAnswers = `wisperlink/rooms/${this.infoHash}/answers`;
+    this.topicRelay = `wisperlink/rooms/${this.infoHash}/relay`;
+    this.onRelayMessage = (payload, remotePeerId) => {};
   }
 
   /**
@@ -212,6 +214,8 @@ export class MqttSignaler {
           this.onOffer(msgObj.payload, msgObj.sender);
         } else if (topic === this.topicAnswers) {
           this.onAnswer(msgObj.payload, msgObj.sender);
+        } else if (topic === this.topicRelay) {
+          this.onRelayMessage(msgObj.payload, msgObj.sender);
         }
       } catch (err) {
         this.onLog(`Failed to parse incoming MQTT payload: ${err.message}`);

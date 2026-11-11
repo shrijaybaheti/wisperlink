@@ -52,7 +52,8 @@ let state = {
   signaler: null,       // WebSocket signaling manager
   signalingTimeoutId: null, // Timeout tracker for fallback
   offerIntervalId: null, // Interval for host periodic offer republishing
-  answerIntervalId: null // Interval for guest periodic answer republishing
+  answerIntervalId: null, // Interval for guest periodic answer republishing
+  roomKeyHex: null       // Symmetric key for room encrypted relay fallback
 };
 
 // Concurrency locks to prevent double-execution during auto-paste or button double-clicks
@@ -335,9 +336,11 @@ async function generateInvite() {
     
     state.signaler.onLog = (msg) => logToConsole(`[Signaler] ${msg}`);
     
+    state.roomKeyHex = keyHex;
     state.signaler.onConnect = () => {
-      logToConsole("MQTT Signaler connected. Subscribing to answers...");
+      logToConsole("MQTT Signaler connected. Subscribing to answers and encrypted relay...");
       state.signaler.subscribe(state.signaler.topicAnswers);
+      state.signaler.subscribe(state.signaler.topicRelay);
       
       logToConsole("Publishing encrypted Offer...");
       state.signaler.publish(state.signaler.topicOffers, encryptedOffer, true);
@@ -351,6 +354,10 @@ async function generateInvite() {
           state.signaler.publish(state.signaler.topicOffers, encryptedOffer, true);
         }
       }, 2000);
+    };
+
+    state.signaler.onRelayMessage = async (encryptedRelayPayload, remotePeerId) => {
+      await handleIncomingRelayMessage(encryptedRelayPayload, remotePeerId);
     };
     
     state.signaler.onAnswer = async (encryptedAnswerPayload, remotePeerId) => {
@@ -524,9 +531,11 @@ async function handleJoinerProcess() {
       state.signaler = new MqttSignaler("wss://broker.hivemq.com:8884/mqtt", autoRoom, guestPeerIdHex);
       state.signaler.onLog = (msg) => logToConsole(`[Signaler] ${msg}`);
       
+      state.roomKeyHex = autoHash;
       state.signaler.onConnect = () => {
-        logToConsole("MQTT Signaler connected. Subscribing to offers...");
+        logToConsole("MQTT Signaler connected. Subscribing to offers and encrypted relay...");
         state.signaler.subscribe(state.signaler.topicOffers);
+        state.signaler.subscribe(state.signaler.topicRelay);
         
         logToConsole("Publishing encrypted Answer...");
         state.signaler.publish(state.signaler.topicAnswers, encryptedAnswer, true);
@@ -539,6 +548,16 @@ async function handleJoinerProcess() {
             state.signaler.publish(state.signaler.topicAnswers, encryptedAnswer, true);
           }
         }, 2000);
+
+        const relayHandshake = {
+          type: 'relay-handshake',
+          name: state.nickname
+        };
+        sendRelayPacket(relayHandshake);
+      };
+
+      state.signaler.onRelayMessage = async (encryptedRelayPayload, remotePeerId) => {
+        await handleIncomingRelayMessage(encryptedRelayPayload, remotePeerId);
       };
       
       state.signaler.onOffer = (encryptedOfferPayload, remotePeerId) => {
@@ -811,6 +830,106 @@ async function relayMessage(senderId, senderName, text) {
   }
 }
 
+async function sendRelayPacket(packetObj) {
+  if (!state.signaler || !state.signaler.isConnected || !state.roomKeyHex) return;
+  try {
+    const jsonStr = JSON.stringify(packetObj);
+    const encrypted = await crypto.encryptWithHexKey(jsonStr, state.roomKeyHex);
+    state.signaler.publish(state.signaler.topicRelay, encrypted, false);
+  } catch (err) {
+    logToConsole(`Encrypted relay packet failed: ${err.message}`);
+  }
+}
+
+async function handleIncomingRelayMessage(encryptedPayload, senderPeerId) {
+  if (!state.roomKeyHex) return;
+  try {
+    const decryptedJson = await crypto.decryptWithHexKey(encryptedPayload, state.roomKeyHex);
+    const packet = JSON.parse(decryptedJson);
+
+    if (packet.type === 'relay-handshake') {
+      logToConsole(`Encrypted relay link detected with "${packet.name}".`);
+      let existing = state.peers.find(p => p.id === senderPeerId);
+      if (!existing) {
+        const dummyManager = {
+          send: (data) => {
+            try {
+              const parsed = JSON.parse(data);
+              sendRelayPacket(parsed);
+            } catch (e) {
+              sendRelayPacket({ type: 'relay-raw', data });
+            }
+          }
+        };
+        const relayPeer = {
+          id: senderPeerId,
+          nickname: packet.name || 'Remote Peer',
+          peerManager: dummyManager,
+          sharedKey: null,
+          isRelay: true
+        };
+        state.peers.push(relayPeer);
+        refreshMembersUI();
+        updateStatus('secure');
+        elements.chatRoomName.innerText = `Grid Session (${state.peers.length} active)`;
+        elements.hostSignalingStatus.style.display = "none";
+        elements.joinerSignalingStatus.style.display = "none";
+        addSystemInfo(`🔒 Encrypted mobile relay link secured with ${relayPeer.nickname}`);
+        showToast(`Connected with ${relayPeer.nickname}`, "info");
+
+        if (state.isHost) {
+          sendRelayPacket({
+            type: 'relay-ack',
+            name: state.nickname
+          });
+        }
+      }
+    } else if (packet.type === 'relay-ack') {
+      logToConsole(`Encrypted relay connection acknowledged by Host "${packet.name}".`);
+      let existing = state.peers.find(p => p.id === senderPeerId);
+      if (!existing) {
+        const dummyManager = {
+          send: (data) => {
+            try {
+              const parsed = JSON.parse(data);
+              sendRelayPacket(parsed);
+            } catch (e) {
+              sendRelayPacket({ type: 'relay-raw', data });
+            }
+          }
+        };
+        const relayPeer = {
+          id: senderPeerId,
+          nickname: packet.name || 'Host',
+          peerManager: dummyManager,
+          sharedKey: null,
+          isRelay: true
+        };
+        state.peers = [relayPeer];
+        refreshMembersUI();
+        updateStatus('secure');
+        elements.chatRoomName.innerText = `Grid Session (1 active)`;
+        elements.hostSignalingStatus.style.display = "none";
+        elements.joinerSignalingStatus.style.display = "none";
+        addSystemInfo(`🔒 Encrypted mobile relay link secured with ${relayPeer.nickname}`);
+        showToast(`Connected with ${relayPeer.nickname}`, "info");
+      }
+    } else if (packet.type === 'message') {
+      const senderName = packet.sender || 'Peer';
+      addMessage(packet.text, senderName, false);
+      if (state.isHost) {
+        sendRelayPacket({
+          type: 'message',
+          sender: senderName,
+          text: packet.text
+        });
+      }
+    }
+  } catch (err) {
+    logToConsole(`Relay packet processing error: ${err.message}`);
+  }
+}
+
 /**
  * Encrypts and broadcasts a message to connected nodes.
  */
@@ -824,8 +943,18 @@ async function sendMessage() {
   }
   
   try {
-    if (state.isHost) {
-      for (const peer of state.peers) {
+    let sentViaRelay = false;
+    for (const peer of state.peers) {
+      if (peer.isRelay) {
+        if (!sentViaRelay) {
+          await sendRelayPacket({
+            type: 'message',
+            sender: state.nickname,
+            text: text
+          });
+          sentViaRelay = true;
+        }
+      } else if (peer.sharedKey) {
         const ciphertext = await crypto.encrypt(peer.sharedKey, text);
         const payload = {
           type: 'message',
@@ -834,20 +963,8 @@ async function sendMessage() {
         };
         peer.peerManager.send(JSON.stringify(payload));
       }
-      addMessage(text, state.nickname, true);
-    } else {
-      const hostPeer = state.peers[0];
-      if (hostPeer) {
-        const ciphertext = await crypto.encrypt(hostPeer.sharedKey, text);
-        const payload = {
-          type: 'message',
-          ciphertext: ciphertext
-        };
-        hostPeer.peerManager.send(JSON.stringify(payload));
-        addMessage(text, state.nickname, true);
-      }
     }
-    
+    addMessage(text, state.nickname, true);
     elements.inputMessage.value = '';
   } catch (err) {
     logToConsole(`Encryption fail: ${err.message}`);
