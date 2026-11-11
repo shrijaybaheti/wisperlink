@@ -321,18 +321,17 @@ async function generateInvite() {
       state.signaler.subscribe(state.signaler.topicAnswers);
       
       logToConsole("Publishing encrypted Offer...");
-      state.signaler.publish(state.signaler.topicOffers, encryptedOffer);
+      state.signaler.publish(state.signaler.topicOffers, encryptedOffer, true);
       
-      // Periodically republish offer every 3 seconds
+      // Periodically republish offer every 2 seconds
       if (state.offerIntervalId) {
         clearInterval(state.offerIntervalId);
       }
       state.offerIntervalId = setInterval(() => {
         if (state.signaler && state.signaler.isConnected) {
-          logToConsole("Republishing encrypted Offer...");
-          state.signaler.publish(state.signaler.topicOffers, encryptedOffer);
+          state.signaler.publish(state.signaler.topicOffers, encryptedOffer, true);
         }
-      }, 3000);
+      }, 2000);
     };
     
     state.signaler.onAnswer = async (encryptedAnswerPayload, remotePeerId) => {
@@ -497,12 +496,12 @@ async function handleJoinerProcess() {
         state.signaler.subscribe(state.signaler.topicOffers);
         
         logToConsole("Publishing encrypted Answer...");
-        state.signaler.publish(state.signaler.topicAnswers, encryptedAnswer);
+        state.signaler.publish(state.signaler.topicAnswers, encryptedAnswer, true);
       };
       
       state.signaler.onOffer = (encryptedOfferPayload, remotePeerId) => {
         logToConsole(`Received encrypted Offer from Host [${remotePeerId.substring(0, 8)}]. Republishing encrypted Answer...`);
-        state.signaler.publish(state.signaler.topicAnswers, encryptedAnswer);
+        state.signaler.publish(state.signaler.topicAnswers, encryptedAnswer, true);
       };
       
       state.signaler.onError = (err) => {
@@ -511,12 +510,12 @@ async function handleJoinerProcess() {
         switchToManualFallback(answerCode);
       };
       
-      // Safety timeout: fallback to manual mode after 8 seconds
+      // Safety timeout: fallback to manual mode after 25 seconds
       state.signalingTimeoutId = setTimeout(() => {
         logToConsole("Automatic signaling timed out. Falling back to manual mode.");
         showToast("Auto-link timed out. Copy-paste code manually.", "warning");
         switchToManualFallback(answerCode);
-      }, 8000);
+      }, 25000);
       
       state.signaler.connect();
     } else {

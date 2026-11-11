@@ -118,8 +118,9 @@ export class MqttSignaler {
    * Publishes a text payload to a topic.
    * @param {string} topic
    * @param {string} payloadStr
+   * @param {boolean} [retain=false]
    */
-  publish(topic, payloadStr) {
+  publish(topic, payloadStr, retain = false) {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
     
     const topicBytes = new TextEncoder().encode(topic);
@@ -135,8 +136,7 @@ export class MqttSignaler {
     const payload = [...msgBytes];
     const remLen = varHeader.length + payload.length;
     
-    // Remaining length encoding (can be up to 4 bytes if payload is large)
-    const headerBytes = [0x30]; // Control Type: PUBLISH, QoS: 0
+    const headerBytes = [0x30 | (retain ? 1 : 0)];
     let temp = remLen;
     do {
       let encodedByte = temp % 128;
