@@ -395,12 +395,10 @@ export function renderQrCode(container, text) {
       container.innerText = "QR Engine not loaded.";
       return;
     }
-    // Auto-select type (0), Low error correction ('L')
     const qr = window.qrcode(0, 'L');
     qr.addData(text);
     qr.make();
-    // Render SVG tag with cell size=3, margin=8
-    const svgTagHtml = qr.createSvgTag(3, 8);
+    const svgTagHtml = qr.createSvgTag(4, 12);
     container.innerHTML = svgTagHtml;
   } catch (err) {
     console.error("QR Code error:", err);

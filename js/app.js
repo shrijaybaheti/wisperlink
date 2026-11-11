@@ -402,8 +402,8 @@ async function handleHostConnect() {
  */
 async function handleJoinerProcess() {
   if (isProcessingJoiner) return;
-  const codeText = elements.joinerRemoteCode.value.trim();
-  if (!codeText) return;
+  const rawInput = elements.joinerRemoteCode.value.trim();
+  if (!rawInput) return;
   
   isProcessingJoiner = true;
   elements.joinerRemoteCode.disabled = true;
@@ -411,12 +411,34 @@ async function handleJoinerProcess() {
   closeMobileSidebar();
   
   try {
-    let decryptedOfferCode = codeText;
-    const isAutoSignaling = !!(roomParam && hashKey);
+    let invitePayload = rawInput;
+    let autoRoom = roomParam;
+    let autoHash = hashKey;
+    
+    if (rawInput.startsWith('http://') || rawInput.startsWith('https://')) {
+      try {
+        const parsedUrl = new URL(rawInput);
+        const urlInvite = parsedUrl.searchParams.get('invite');
+        const urlRoom = parsedUrl.searchParams.get('room');
+        const urlHash = parsedUrl.hash ? parsedUrl.hash.substring(1) : null;
+        if (urlInvite) {
+          invitePayload = urlInvite;
+        }
+        if (urlRoom) {
+          autoRoom = urlRoom;
+        }
+        if (urlHash) {
+          autoHash = urlHash;
+        }
+      } catch (e) {}
+    }
+    
+    let decryptedOfferCode = invitePayload;
+    const isAutoSignaling = !!(autoRoom && autoHash);
     
     if (isAutoSignaling) {
       logToConsole("Decrypting invite payload using URL hash key...");
-      decryptedOfferCode = await crypto.decryptWithHexKey(codeText, hashKey);
+      decryptedOfferCode = await crypto.decryptWithHexKey(invitePayload, autoHash);
       logToConsole("Invite payload decrypted successfully.");
     }
     
@@ -445,7 +467,7 @@ async function handleJoinerProcess() {
     let encryptedAnswer = answerCode;
     if (isAutoSignaling) {
       logToConsole("Encrypting answer description...");
-      encryptedAnswer = await crypto.encryptWithHexKey(answerCode, hashKey);
+      encryptedAnswer = await crypto.encryptWithHexKey(answerCode, autoHash);
       logToConsole("Answer description encrypted.");
     }
     
@@ -467,7 +489,7 @@ async function handleJoinerProcess() {
       elements.joinerSignalingStatus.style.display = "flex";
       
       const guestPeerIdHex = Array.from(window.crypto.getRandomValues(new Uint8Array(20)), b => b.toString(16).padStart(2, '0')).join('');
-      state.signaler = new MqttSignaler("wss://broker.hivemq.com:8884/mqtt", roomParam, guestPeerIdHex);
+      state.signaler = new MqttSignaler("wss://broker.hivemq.com:8884/mqtt", autoRoom, guestPeerIdHex);
       state.signaler.onLog = (msg) => logToConsole(`[Signaler] ${msg}`);
       
       state.signaler.onConnect = () => {
