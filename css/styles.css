@@ -505,22 +505,24 @@
   flex-direction: column;
   max-width: 75%;
   position: relative;
-  animation: message-pop var(--dur-short) var(--ease-out);
-  transition: transform var(--dur-micro) var(--ease-out);
+  animation: message-pop var(--dur-long) var(--ease-out);
+  transition: transform var(--dur-short) var(--ease-out), box-shadow var(--dur-short) var(--ease-out);
 }
 
 .msg-block:hover {
-  transform: translateY(-1px);
+  transform: translateY(-2px);
 }
 
 .msg-block.me {
   align-self: flex-end;
   align-items: flex-end;
+  transform-origin: bottom right;
 }
 
 .msg-block.peer {
   align-self: flex-start;
   align-items: flex-start;
+  transform-origin: bottom left;
 }
 
 .msg-meta {
@@ -545,6 +547,11 @@
   word-break: break-word;
   white-space: pre-wrap;
   box-shadow: var(--shadow-bubble);
+  transition: transform var(--dur-micro) var(--ease-out), box-shadow var(--dur-micro) var(--ease-out);
+}
+
+.msg-text:active {
+  transform: scale(0.99);
 }
 
 .msg-block.me .msg-text {
@@ -717,13 +724,16 @@
   width: 40px;
   height: 40px;
   border-radius: var(--radius-pill);
-  transition: background-color var(--dur-short) var(--ease-out), color var(--dur-short) var(--ease-out), transform var(--dur-micro) var(--ease-out);
+  transition: background-color var(--dur-short) var(--ease-out), color var(--dur-short) var(--ease-out), transform var(--dur-micro) var(--ease-out), box-shadow var(--dur-short) var(--ease-out);
   flex-shrink: 0;
+  box-shadow: var(--shadow-btn);
 }
 
-.btn-send:hover {
+.btn-send:hover:not(:disabled) {
   background: var(--color-ink);
   color: var(--color-paper);
+  transform: scale(1.06);
+  box-shadow: var(--shadow-btn-hover);
 }
 
 .btn-send:focus-visible {
@@ -731,13 +741,14 @@
   outline-offset: 2px;
 }
 
-.btn-send:active {
-  transform: scale(0.95);
+.btn-send:active:not(:disabled) {
+  transform: scale(0.92);
 }
 
 .btn-send:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+  transform: none;
 }
 
 .btn-send svg {
@@ -1029,10 +1040,10 @@
 @keyframes message-pop {
   0% {
     opacity: 0;
-    transform: translateY(8px) scale(0.98);
+    transform: translateY(12px) scale(0.97);
   }
-  60% {
-    transform: translateY(-1px) scale(1.005);
+  70% {
+    transform: translateY(-2px) scale(1.01);
   }
   100% {
     opacity: 1;
@@ -1043,18 +1054,41 @@
 @keyframes fade-enter {
   0% {
     opacity: 0;
-    transform: scale(0.99);
+    transform: translateY(6px) scale(0.98);
   }
   100% {
     opacity: 1;
-    transform: scale(1);
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes slide-drawer {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes bubble-shine {
+  0% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.04);
+  }
+  100% {
+    filter: brightness(1);
   }
 }
 
 @keyframes qr-pop {
   0% {
     opacity: 0;
-    transform: scale(0.94);
+    transform: scale(0.92);
   }
   100% {
     opacity: 1;
