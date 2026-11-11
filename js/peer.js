@@ -30,6 +30,11 @@ export class PeerManager {
         this.onDisconnected();
       }
     };
+
+    this.pc.oniceconnectionstatechange = () => {
+      const state = this.pc.iceConnectionState;
+      this.onLog(`ICE connection state: ${state}`);
+    };
     
     this.onLog('Peer connection created');
   }
