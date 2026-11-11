@@ -9,53 +9,49 @@
   --container: 1440px; --gutter: 64px; --gap-columns: 32px; --section-gap-s: 120px; --section-gap: 144px; --section-gap-l: 176px;
   --z-base: 1; --z-raised: 10; --z-dropdown: 100; --z-sticky: 200; --z-sticky-nav: 300; --z-modal: 400; --z-toast: 500; --z-tooltip: 600;
   
-  /* Liquid Glass Palette: Deep Royal Violet with Specular Frost & Fluid Glow */
-  --color-paper: oklch(24% 0.16 295);
-  --color-paper-2: oklch(100% 0 0 / 0.12);
-  --color-paper-3: oklch(100% 0 0 / 0.08);
-  --color-liquid-glow-1: oklch(48% 0.28 295);
-  --color-liquid-glow-2: oklch(38% 0.22 290);
-  --color-liquid-glow-3: oklch(28% 0.18 300);
-  --color-liquid-glow-4: oklch(20% 0.14 295);
+  --color-paper: oklch(20% 0.04 250);
+  --color-paper-2: oklch(100% 0.005 250 / 0.16);
+  --color-paper-3: oklch(100% 0.005 250 / 0.09);
+  --color-liquid-glow-1: oklch(32% 0.12 250);
+  --color-liquid-glow-2: oklch(22% 0.08 245);
+  --color-liquid-glow-3: oklch(16% 0.05 250);
+  --color-liquid-glow-4: oklch(12% 0.03 250);
   
-  /* Ink & Typography: Bright White & Translucent Whites */
-  --color-ink: oklch(99% 0.005 280);
-  --color-ink-2: oklch(92% 0.01 280 / 0.85);
-  --color-muted: oklch(86% 0.015 280 / 0.70);
+  --color-ink: oklch(99% 0.005 250);
+  --color-ink-2: oklch(100% 0.005 250 / 0.85);
+  --color-muted: oklch(100% 0.005 250 / 0.65);
   
-  /* Specular Glass Rules & Inset Highlights */
-  --color-rule: oklch(100% 0 0 / 0.20);
-  --color-rule-2: oklch(100% 0 0 / 0.35);
+  --color-rule: oklch(100% 0.005 250 / 0.22);
+  --color-rule-2: oklch(100% 0.005 250 / 0.35);
   
-  /* Glass Accent Button & Tags */
-  --color-accent: oklch(35% 0.18 280);
-  --color-accent-ink: oklch(99% 0.005 280);
-  --color-accent-soft: oklch(100% 0 0 / 0.15);
-  --color-focus: oklch(100% 0 0 / 0.60);
+  --color-accent: oklch(54% 0.24 252);
+  --color-accent-ink: oklch(99% 0.005 250);
+  --color-accent-soft: oklch(54% 0.24 252 / 0.20);
+  --color-focus: oklch(54% 0.24 252);
   
-  --color-cool: oklch(75% 0.15 250);
-  --color-cool-soft: oklch(100% 0 0 / 0.15);
-  --color-ok: oklch(72% 0.18 150);
-  --color-ok-soft: oklch(100% 0 0 / 0.15);
-  --color-bad: oklch(65% 0.22 25);
-  --color-bad-soft: oklch(100% 0 0 / 0.15);
+  --color-cool: oklch(62% 0.18 245);
+  --color-cool-soft: oklch(100% 0.005 250 / 0.15);
+  --color-ok: oklch(68% 0.18 150);
+  --color-ok-soft: oklch(100% 0.005 250 / 0.15);
+  --color-bad: oklch(62% 0.22 25);
+  --color-bad-soft: oklch(100% 0.005 250 / 0.15);
   
-  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Host Grotesk", system-ui, sans-serif;
-  --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Host Grotesk", system-ui, sans-serif;
-  --font-outlier: "SF Mono", "Atkinson Hyperlegible Mono", ui-monospace, Menlo, monospace;
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro", system-ui, sans-serif;
+  --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro", system-ui, sans-serif;
+  --font-outlier: "SF Mono", Monaco, Menlo, ui-monospace, monospace;
   
   --radius-card: 24px;
   --radius-bubble: 18px;
   --radius-pill: 9999px;
   --rule-hair: 1px;
   
-  --shadow-card: 0 25px 50px -12px oklch(10% 0.08 280 / 0.50), 0 0 0 1px oklch(100% 0 0 / 0.25) inset;
-  --shadow-bubble: 0 8px 24px -4px oklch(10% 0.08 280 / 0.30), 0 0 0 1px oklch(100% 0 0 / 0.20) inset;
-  --shadow-floating: 0 30px 60px -12px oklch(10% 0.08 280 / 0.60), 0 0 0 1px oklch(100% 0 0 / 0.30) inset;
-  --shadow-btn: 0 8px 20px -4px oklch(10% 0.08 280 / 0.35), 0 0 0 1px oklch(100% 0 0 / 0.30) inset;
-  --shadow-btn-hover: 0 12px 28px -4px oklch(10% 0.08 280 / 0.45), 0 0 0 1px oklch(100% 0 0 / 0.50) inset;
+  --shadow-card: 0 24px 48px -12px oklch(0% 0 0 / 0.40), 0 0 0 1px oklch(100% 0.005 250 / 0.25) inset;
+  --shadow-bubble: 0 6px 20px -3px oklch(0% 0 0 / 0.25), 0 0 0 1px oklch(100% 0.005 250 / 0.20) inset;
+  --shadow-floating: 0 32px 64px -16px oklch(0% 0 0 / 0.50), 0 0 0 1px oklch(100% 0.005 250 / 0.35) inset;
+  --shadow-btn: 0 6px 16px -2px oklch(54% 0.24 252 / 0.35), 0 1px 1px 0 oklch(100% 0.005 250 / 0.3) inset;
+  --shadow-btn-hover: 0 10px 24px -2px oklch(54% 0.24 252 / 0.50), 0 1px 1px 0 oklch(100% 0.005 250 / 0.4) inset;
   
-  --color-accent-code: oklch(100% 0 0 / 0.25);
+  --color-accent-code: oklch(100% 0.005 250 / 0.25);
   --tracking-display: -0.025em;
   --display-weight: 600;
 }
