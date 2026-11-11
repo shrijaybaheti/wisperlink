@@ -220,9 +220,13 @@
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   color: var(--color-ink);
-  display: flex;
+  display: none;
   flex-direction: column;
   z-index: var(--z-raised);
+}
+
+#app:not(:has(#view-landing.active)) .panel-sidebar {
+  display: flex;
 }
 
 .panel-main {
@@ -230,9 +234,13 @@
   height: 100vh;
   background: transparent;
   color: var(--color-ink);
-  display: flex;
+  display: none;
   flex-direction: column;
   position: relative;
+}
+
+#app:not(:has(#view-landing.active)) .panel-main {
+  display: flex;
 }
 
 /* --- Sidebar Content Components --- */
