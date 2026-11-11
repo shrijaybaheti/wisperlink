@@ -53,7 +53,8 @@ let state = {
   signalingTimeoutId: null, // Timeout tracker for fallback
   offerIntervalId: null, // Interval for host periodic offer republishing
   answerIntervalId: null, // Interval for guest periodic answer republishing
-  roomKeyHex: null       // Symmetric key for room encrypted relay fallback
+  roomKeyHex: null,      // Symmetric key for room encrypted relay fallback
+  securedPeers: new Set()
 };
 
 // Concurrency locks to prevent double-execution during auto-paste or button double-clicks
@@ -704,6 +705,9 @@ function setupPeerCallbacks(peerObj) {
         peerObj.sharedKey = sharedKey;
         peerObj.nickname = payload.name || 'Anonymous Peer';
         
+        const alreadySecured = state.securedPeers.has(peerObj.nickname);
+        state.securedPeers.add(peerObj.nickname);
+
         state.peers = state.peers.filter(p => !p.isRelay);
         if (state.isHost) {
           if (state.pendingHostPeer && state.pendingHostPeer.id === peerObj.id) {
@@ -722,8 +726,8 @@ function setupPeerCallbacks(peerObj) {
         
         refreshMembersUI();
         
-        if (!state.peers.some(p => p.nickname === peerObj.nickname)) {
-          addSystemInfo(`🔒 Link secured with ${peerObj.nickname}`);
+        if (!alreadySecured) {
+          addSystemInfo(`🔒 Direct P2P link secured with ${peerObj.nickname}`);
           showToast(`Connected with ${peerObj.nickname}`, "info");
         }
         
@@ -874,13 +878,17 @@ async function handleIncomingRelayMessage(encryptedPayload, senderPeerId) {
           sharedKey: null,
           isRelay: true
         };
+        const targetNick = relayPeer.nickname;
+        const alreadySecured = state.securedPeers.has(targetNick);
+        state.securedPeers.add(targetNick);
+
         state.peers.push(relayPeer);
         refreshMembersUI();
         updateStatus('secure');
         elements.chatRoomName.innerText = `Grid Session (${state.peers.length} active)`;
         elements.hostSignalingStatus.style.display = "none";
         elements.joinerSignalingStatus.style.display = "none";
-        if (!state.peers.some(p => p.nickname === relayPeer.nickname)) {
+        if (!alreadySecured) {
           addSystemInfo(`🔒 Link secured with ${relayPeer.nickname}`);
           showToast(`Connected with ${relayPeer.nickname}`, "info");
         }
@@ -913,13 +921,17 @@ async function handleIncomingRelayMessage(encryptedPayload, senderPeerId) {
           sharedKey: null,
           isRelay: true
         };
+        const targetNick = relayPeer.nickname;
+        const alreadySecured = state.securedPeers.has(targetNick);
+        state.securedPeers.add(targetNick);
+
         state.peers = [relayPeer];
         refreshMembersUI();
         updateStatus('secure');
         elements.chatRoomName.innerText = `Grid Session (1 active)`;
         elements.hostSignalingStatus.style.display = "none";
         elements.joinerSignalingStatus.style.display = "none";
-        if (!state.peers.some(p => p.nickname === relayPeer.nickname)) {
+        if (!alreadySecured) {
           addSystemInfo(`🔒 Link secured with ${relayPeer.nickname}`);
           showToast(`Connected with ${relayPeer.nickname}`, "info");
         }
@@ -1393,6 +1405,7 @@ function resetToLanding() {
   state.pendingHostPeer = null;
   state.localKeyPair = null;
   state.isHost = false;
+  state.securedPeers.clear();
   closeMobileSidebar();
   
   isConnectingHost = false;

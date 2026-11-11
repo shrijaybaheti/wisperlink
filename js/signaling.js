@@ -5,15 +5,11 @@
 
 const DEFAULT_BROKERS = [
   "wss://broker.emqx.io:8084/mqtt",
-  "wss://broker.hivemq.com:8884/mqtt"
+  "wss://broker.hivemq.com:8884/mqtt",
+  "wss://test.mosquitto.org:8081"
 ];
 
 export class MqttSignaler {
-  /**
-   * @param {string|string[]} brokerUrls
-   * @param {string} infoHash Room identifier
-   * @param {string} peerId Client peer identifier
-   */
   constructor(brokerUrls, infoHash, peerId) {
     if (Array.isArray(brokerUrls)) {
       this.brokerUrls = brokerUrls;
@@ -27,8 +23,9 @@ export class MqttSignaler {
     this.infoHash = infoHash;
     this.peerId = peerId;
     this.ws = null;
+    this.connectionTimeout = null;
+    this.isRetrying = false;
     
-    // Callbacks to be hooked by application controller
     this.onOffer = (offer, remotePeerId) => {};
     this.onAnswer = (answer, remotePeerId) => {};
     this.onError = (err) => {};
@@ -42,10 +39,8 @@ export class MqttSignaler {
     this.onRelayMessage = (payload, remotePeerId) => {};
   }
 
-  /**
-   * Establishes the WebSocket connection and negotiates the MQTT subprotocol.
-   */
   connect() {
+    this.isRetrying = false;
     this.brokerUrl = this.brokerUrls[this.currentBrokerIndex];
     this.onLog(`Connecting to MQTT broker: ${this.brokerUrl}`);
     
@@ -54,10 +49,14 @@ export class MqttSignaler {
       this.ws = ws;
       ws.binaryType = 'arraybuffer';
       
-      const connectionTimeout = setTimeout(() => {
+      this.connectionTimeout = setTimeout(() => {
         if (ws.readyState !== WebSocket.OPEN || !this.isConnected) {
           this.onLog(`Broker connection timed out on ${this.brokerUrl}`);
-          ws.close();
+          try {
+            ws.onclose = null;
+            ws.onerror = null;
+            ws.close();
+          } catch (e) {}
           this.tryNextBroker();
         }
       }, 5000);
@@ -74,12 +73,28 @@ export class MqttSignaler {
       };
       
       ws.onerror = (err) => {
-        clearTimeout(connectionTimeout);
+        if (this.connectionTimeout) {
+          clearTimeout(this.connectionTimeout);
+          this.connectionTimeout = null;
+        }
         this.onLog(`WebSocket error on ${this.brokerUrl}: ${err.message || "Disconnected"}`);
+        const wasConnected = this.isConnected;
+        this.isConnected = false;
+        if (!wasConnected) {
+          try {
+            ws.onclose = null;
+            ws.onerror = null;
+            ws.close();
+          } catch (e) {}
+          this.tryNextBroker();
+        }
       };
       
       ws.onclose = () => {
-        clearTimeout(connectionTimeout);
+        if (this.connectionTimeout) {
+          clearTimeout(this.connectionTimeout);
+          this.connectionTimeout = null;
+        }
         this.onLog("WebSocket signaling connection closed.");
         const wasConnected = this.isConnected;
         this.isConnected = false;
@@ -94,10 +109,12 @@ export class MqttSignaler {
   }
 
   tryNextBroker() {
+    if (this.isRetrying) return;
+    this.isRetrying = true;
     if (this.currentBrokerIndex + 1 < this.brokerUrls.length) {
       this.currentBrokerIndex++;
       this.onLog(`Retrying with backup signaling broker: ${this.brokerUrls[this.currentBrokerIndex]}`);
-      setTimeout(() => this.connect(), 300);
+      setTimeout(() => this.connect(), 200);
     } else {
       this.onError(new Error("All signaling brokers failed."));
     }
@@ -254,6 +271,10 @@ export class MqttSignaler {
    * Closes the active WebSocket connection.
    */
   close() {
+    if (this.connectionTimeout) {
+      clearTimeout(this.connectionTimeout);
+      this.connectionTimeout = null;
+    }
     if (this.ws) {
       this.onLog("Closing connection to signaling broker.");
       const socket = this.ws;
