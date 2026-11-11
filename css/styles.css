@@ -63,7 +63,7 @@
 
 .landing-card {
   width: 100%;
-  max-width: 380px;
+  max-width: 400px;
   background: var(--color-paper-2);
   color: var(--color-ink);
   border: var(--rule-hair) solid var(--color-rule);
@@ -72,6 +72,9 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
+  box-shadow: var(--shadow-card);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 /* --- Form Fields --- */
@@ -484,6 +487,11 @@
   max-width: 68%;
   position: relative;
   animation: message-pop var(--dur-short) var(--ease-out);
+  transition: transform var(--dur-micro) var(--ease-out);
+}
+
+.msg-block:hover {
+  transform: translateY(-1px);
 }
 
 .msg-block.me {
@@ -514,13 +522,13 @@
   border-radius: var(--radius-card);
   word-break: break-word;
   white-space: pre-wrap;
+  box-shadow: var(--shadow-bubble);
 }
 
-/* WhatsApp/Telegram rounded asymmetric tails */
 .msg-block.me .msg-text {
-  background: var(--color-accent-soft);
-  border-color: var(--color-rule);
-  color: var(--color-ink);
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-accent-ink);
   border-bottom-right-radius: var(--space-3xs);
 }
 
@@ -532,8 +540,15 @@
 }
 
 /* Markdown styling inside bubbles */
-.msg-text strong {
-  font-weight: 600;
+.msg-block.me .msg-text a {
+  color: var(--color-accent-ink);
+  text-decoration: underline;
+}
+
+.msg-block.me .msg-text code {
+  background: var(--color-accent-code);
+  color: var(--color-accent-ink);
+  border: none;
 }
 .msg-text em {
   font-style: italic;
@@ -987,27 +1002,32 @@
 @keyframes message-pop {
   0% {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(8px) scale(0.98);
+  }
+  60% {
+    transform: translateY(-1px) scale(1.005);
   }
   100% {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
   }
 }
 
 @keyframes fade-enter {
   0% {
     opacity: 0;
+    transform: scale(0.99);
   }
   100% {
     opacity: 1;
+    transform: scale(1);
   }
 }
 
 @keyframes qr-pop {
   0% {
     opacity: 0;
-    transform: scale(0.96);
+    transform: scale(0.94);
   }
   100% {
     opacity: 1;
