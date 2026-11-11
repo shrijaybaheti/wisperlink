@@ -46,7 +46,8 @@ let state = {
   pendingHostPeer: null, // Host-only: peer object currently in the handshake process
   signaler: null,       // WebSocket signaling manager
   signalingTimeoutId: null, // Timeout tracker for fallback
-  offerIntervalId: null // Interval for host periodic offer republishing
+  offerIntervalId: null, // Interval for host periodic offer republishing
+  answerIntervalId: null // Interval for guest periodic answer republishing
 };
 
 // Concurrency locks to prevent double-execution during auto-paste or button double-clicks
@@ -514,6 +515,15 @@ async function handleJoinerProcess() {
         
         logToConsole("Publishing encrypted Answer...");
         state.signaler.publish(state.signaler.topicAnswers, encryptedAnswer, true);
+
+        if (state.answerIntervalId) {
+          clearInterval(state.answerIntervalId);
+        }
+        state.answerIntervalId = setInterval(() => {
+          if (state.signaler && state.signaler.isConnected) {
+            state.signaler.publish(state.signaler.topicAnswers, encryptedAnswer, true);
+          }
+        }, 2000);
       };
       
       state.signaler.onOffer = (encryptedOfferPayload, remotePeerId) => {
@@ -556,6 +566,10 @@ function cleanupSignaling() {
   if (state.offerIntervalId) {
     clearInterval(state.offerIntervalId);
     state.offerIntervalId = null;
+  }
+  if (state.answerIntervalId) {
+    clearInterval(state.answerIntervalId);
+    state.answerIntervalId = null;
   }
   if (state.signalingTimeoutId) {
     clearTimeout(state.signalingTimeoutId);
