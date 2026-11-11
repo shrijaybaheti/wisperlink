@@ -908,6 +908,7 @@ async function handleIncomingRelayMessage(encryptedPayload, senderPeerId) {
             type: 'relay-ack',
             name: state.nickname
           });
+          broadcastMemberList();
         }
       }
     } else if (packet.type === 'relay-ack') {
@@ -949,6 +950,15 @@ async function handleIncomingRelayMessage(encryptedPayload, senderPeerId) {
         existing.nickname = packet.name || 'Host';
         refreshMembersUI();
       }
+    } else if (packet.type === 'members') {
+      if (!state.isHost && Array.isArray(packet.list)) {
+        const membersList = packet.list.map(name => ({
+          name: name,
+          isHost: name === (state.peers[0] ? state.peers[0].nickname : 'Host')
+        }));
+        updatePeerList(membersList);
+        elements.chatRoomName.innerText = `Grid Session (${packet.list.length} active)`;
+      }
     } else if (packet.type === 'message') {
       const senderName = packet.sender || 'Peer';
       if (packet.originSenderId && packet.originSenderId === state.signaler.peerId) {
@@ -974,6 +984,12 @@ async function handleIncomingRelayMessage(encryptedPayload, senderPeerId) {
             }
           } catch (e) {}
         }
+        sendRelayPacket({
+          type: 'message',
+          sender: senderName,
+          originSenderId: packet.originSenderId || senderPeerId,
+          text: packet.text
+        });
       }
     }
   } catch (err) {
@@ -1330,10 +1346,10 @@ function broadcastMemberList() {
   state.peers.forEach(peer => {
     try {
       peer.peerManager.send(dataStr);
-    } catch (err) {
-      console.error(`Broadcast failed for ${peer.nickname}:`, err);
-    }
+    } catch (err) {}
   });
+
+  sendRelayPacket(payload);
 }
 
 /**
