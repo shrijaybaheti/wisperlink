@@ -819,18 +819,31 @@ async function relayMessage(senderId, senderName, text) {
   for (const peer of state.peers) {
     if (peer.id === senderId) continue;
     
+    if (peer.isRelay) {
+      continue;
+    }
+
     try {
-      const ciphertext = await crypto.encrypt(peer.sharedKey, text);
-      const payload = {
-        type: 'message',
-        sender: senderName,
-        ciphertext: ciphertext
-      };
-      peer.peerManager.send(JSON.stringify(payload));
+      if (peer.sharedKey) {
+        const ciphertext = await crypto.encrypt(peer.sharedKey, text);
+        const payload = {
+          type: 'message',
+          sender: senderName,
+          ciphertext: ciphertext
+        };
+        peer.peerManager.send(JSON.stringify(payload));
+      }
     } catch (err) {
       logToConsole(`Failed to relay to [${peer.nickname}]: ${err.message}`);
     }
   }
+
+  sendRelayPacket({
+    type: 'message',
+    sender: senderName,
+    originSenderId: senderId,
+    text: text
+  });
 }
 
 async function sendRelayPacket(packetObj) {
@@ -938,13 +951,29 @@ async function handleIncomingRelayMessage(encryptedPayload, senderPeerId) {
       }
     } else if (packet.type === 'message') {
       const senderName = packet.sender || 'Peer';
+      if (packet.originSenderId && packet.originSenderId === state.signaler.peerId) {
+        return;
+      }
+      if (senderName === state.nickname) {
+        return;
+      }
       addMessage(packet.text, senderName, false);
       if (state.isHost) {
-        sendRelayPacket({
-          type: 'message',
-          sender: senderName,
-          text: packet.text
-        });
+        for (const peer of state.peers) {
+          if (peer.isRelay) continue;
+          if (peer.id === senderPeerId) continue;
+          try {
+            if (peer.sharedKey) {
+              crypto.encrypt(peer.sharedKey, packet.text).then(ciphertext => {
+                peer.peerManager.send(JSON.stringify({
+                  type: 'message',
+                  sender: senderName,
+                  ciphertext: ciphertext
+                }));
+              });
+            }
+          } catch (e) {}
+        }
       }
     }
   } catch (err) {
@@ -972,6 +1001,7 @@ async function sendMessage() {
           await sendRelayPacket({
             type: 'message',
             sender: state.nickname,
+            originSenderId: state.signaler.peerId,
             text: text
           });
           sentViaRelay = true;
