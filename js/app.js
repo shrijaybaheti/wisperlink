@@ -567,17 +567,20 @@ async function handleJoinerProcess() {
       };
       
       state.signaler.onError = (err) => {
-        logToConsole(`Automatic signaling failed: ${err.message || "Disconnected"}. Falling back to manual mode.`);
-        showToast("Auto-link failed. Copy-paste code manually.", "warning");
-        switchToManualFallback(answerCode);
+        logToConsole(`Automatic signaling status: ${err.message || "Disconnected"}.`);
+        if (state.peers.length === 0) {
+          showToast("Auto-link failed. Copy-paste code manually.", "warning");
+          switchToManualFallback(answerCode);
+        }
       };
       
-      // Safety timeout: fallback to manual mode after 25 seconds
       state.signalingTimeoutId = setTimeout(() => {
-        logToConsole("Automatic signaling timed out. Falling back to manual mode.");
-        showToast("Auto-link timed out. Copy-paste code manually.", "warning");
-        switchToManualFallback(answerCode);
-      }, 25000);
+        if (state.peers.length === 0) {
+          logToConsole("Automatic signaling timed out. Falling back to manual mode.");
+          showToast("Auto-link timed out. Copy-paste code manually.", "warning");
+          switchToManualFallback(answerCode);
+        }
+      }, 35000);
       
       state.signaler.connect();
     } else {
@@ -672,11 +675,6 @@ function setupPeerCallbacks(peerObj) {
       
       pm.send(JSON.stringify(handshake));
       
-      // Clean up signaling connections since WebRTC data channel is established
-      if (state.signaler || state.offerIntervalId || state.signalingTimeoutId) {
-        logToConsole("Automatic link secure. Closing signaling channels.");
-        cleanupSignaling();
-      }
       elements.hostSignalingStatus.style.display = "none";
       elements.joinerSignalingStatus.style.display = "none";
     } catch (err) {
@@ -794,16 +792,23 @@ function setupPeerCallbacks(peerObj) {
   };
   
   pm.onDisconnected = () => {
-    logToConsole(`[Tunnel:${peerObj.id}] Connection closed.`);
-    addSystemInfo(`❌ Link closed with ${peerObj.nickname}`);
+    logToConsole(`[Tunnel:${peerObj.id}] Direct P2P data connection closed.`);
     
     state.peers = state.peers.filter(p => p.id !== peerObj.id);
     
     if (state.isHost) {
+      if (state.peers.length === 0) {
+        addSystemInfo(`❌ Link closed with ${peerObj.nickname}`);
+      }
       broadcastMemberList();
     } else {
-      updateStatus('offline');
-      showToast("Host connection lost.", "error");
+      if (state.peers.length === 0) {
+        addSystemInfo(`❌ Direct link closed with ${peerObj.nickname}`);
+        if (!state.signaler || !state.signaler.isConnected) {
+          updateStatus('offline');
+          showToast("Host connection lost.", "error");
+        }
+      }
     }
     
     refreshMembersUI();
@@ -1310,7 +1315,7 @@ function broadcastMemberList() {
  * Refreshes member lists and enables/disables inputs dynamically.
  */
 function refreshMembersUI() {
-  const isConnected = state.peers.length > 0 && state.peers.some(p => p.sharedKey);
+  const isConnected = state.peers.length > 0 && state.peers.some(p => p.sharedKey || p.isRelay);
   
   if (state.isHost) {
     const members = [
@@ -1333,7 +1338,7 @@ function refreshMembersUI() {
     elements.chatRoomName.innerText = `Host Room (${state.peers.length} active)`;
   } else {
     const hostPeer = state.peers[0];
-    const guestConnected = !!(hostPeer && hostPeer.sharedKey);
+    const guestConnected = !!(hostPeer && (hostPeer.sharedKey || hostPeer.isRelay));
     
     elements.inputMessage.disabled = !guestConnected;
     elements.btnSendMessage.disabled = !guestConnected;
