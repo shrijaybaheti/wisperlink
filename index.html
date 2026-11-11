@@ -17,9 +17,11 @@
     
     <!-- LANDING VIEW (Overlay Console) -->
     <section id="view-landing" class="view active">
+      <div class="landing-bg-glow" aria-hidden="true"></div>
+      
       <div class="landing-header">
         <h1 class="landing-brand">whisper<span>link</span></h1>
-        <p class="landing-subtitle">Serverless P2P Group Console</p>
+        <p class="landing-subtitle">Private, serverless group communications directly between your devices with zero central storage.</p>
       </div>
       
       <div class="landing-card">
@@ -28,12 +30,44 @@
           <input class="input-console" id="input-nickname" type="text" placeholder="e.g. Alice" maxlength="15" autocomplete="off">
         </div>
         
-        <button class="btn-console orange" id="btn-host-start">Host a Chat</button>
-        <button class="btn-console" id="btn-join-start">Join a Chat</button>
+        <div class="landing-actions">
+          <button class="btn-console orange" id="btn-host-start">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="16"></line>
+              <line x1="8" y1="12" x2="16" y2="12"></line>
+            </svg>
+            <span>Host a Chat</span>
+          </button>
+          <button class="btn-console" id="btn-join-start">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+              <polyline points="10 17 15 12 10 7"></polyline>
+              <line x1="15" y1="12" x2="3" y2="12"></line>
+            </svg>
+            <span>Join a Chat</span>
+          </button>
+        </div>
 
         <div id="landing-invite-prompt" style="display: none; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem; border-top: 1px solid var(--border-color); padding-top: 0.75rem;">
           <span class="chat-room-meta" style="color: var(--color-accent-strong);">Invitation ready</span>
           <button class="btn-console orange" id="btn-landing-join-now" style="width: 100%;">Join Chat Now</button>
+        </div>
+
+        <div class="landing-features">
+          <div class="landing-feature-item">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+            <span>Zero-Knowledge AES-256</span>
+          </div>
+          <div class="landing-feature-item">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+            </svg>
+            <span>Serverless WebRTC Mesh</span>
+          </div>
         </div>
       </div>
     </section>
