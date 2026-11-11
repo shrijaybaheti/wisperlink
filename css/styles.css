@@ -552,15 +552,13 @@
 /* Chat timeline with subtle conversational background */
 .chat-messages {
   flex: 1;
-  padding: var(--space-lg) var(--space-lg) var(--space-xl);
+  padding: var(--space-lg);
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
   background: transparent;
-  max-width: 900px;
   width: 100%;
-  margin: 0 auto;
   box-sizing: border-box;
 }
 
@@ -771,12 +769,6 @@
   color: var(--color-muted);
   cursor: not-allowed;
   opacity: 0.6;
-}
-
-.input-message:focus-visible {
-  border-color: var(--color-focus);
-  outline: 2px solid var(--color-focus);
-  outline-offset: 1px;
 }
 
 .input-wrapper #btn-emoji-trigger {
