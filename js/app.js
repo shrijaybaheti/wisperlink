@@ -410,6 +410,21 @@ async function handleJoinerProcess() {
   closeMobileSidebar();
   
   try {
+    if (elements.viewLanding && elements.viewLanding.classList.contains('active')) {
+      const nameInput = elements.inputNickname.value.trim();
+      state.nickname = nameInput || 'Guest';
+      state.isHost = false;
+      showLanding(false);
+      elements.panelHostControls.style.display = 'none';
+      elements.panelGuestControls.style.display = 'flex';
+      elements.chatRoomName.innerText = "Connecting to Grid...";
+    }
+
+    if (!state.localKeyPair) {
+      logToConsole("Generating guest ECDH cryptographic keypair...");
+      state.localKeyPair = await crypto.generateKeyPair();
+    }
+    
     let invitePayload = rawInput;
     let autoRoom = roomParam;
     let autoHash = hashKey;
