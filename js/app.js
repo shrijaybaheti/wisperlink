@@ -574,14 +574,6 @@ async function handleJoinerProcess() {
         }
       };
       
-      state.signalingTimeoutId = setTimeout(() => {
-        if (state.peers.length === 0) {
-          logToConsole("Automatic signaling timed out. Falling back to manual mode.");
-          showToast("Auto-link timed out. Copy-paste code manually.", "warning");
-          switchToManualFallback(answerCode);
-        }
-      }, 35000);
-      
       state.signaler.connect();
     } else {
       logToConsole("Answer Code and QR generated. Send back to Host.");
@@ -803,8 +795,8 @@ function setupPeerCallbacks(peerObj) {
       broadcastMemberList();
     } else {
       if (state.peers.length === 0) {
-        addSystemInfo(`❌ Direct link closed with ${peerObj.nickname}`);
         if (!state.signaler || !state.signaler.isConnected) {
+          addSystemInfo(`❌ Direct link closed with ${peerObj.nickname}`);
           updateStatus('offline');
           showToast("Host connection lost.", "error");
         }
@@ -940,6 +932,9 @@ async function handleIncomingRelayMessage(encryptedPayload, senderPeerId) {
           addSystemInfo(`🔒 Link secured with ${relayPeer.nickname}`);
           showToast(`Connected with ${relayPeer.nickname}`, "info");
         }
+      } else {
+        existing.nickname = packet.name || 'Host';
+        refreshMembersUI();
       }
     } else if (packet.type === 'message') {
       const senderName = packet.sender || 'Peer';
