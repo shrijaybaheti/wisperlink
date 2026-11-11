@@ -25,6 +25,7 @@ export class MqttSignaler {
     this.ws = null;
     this.connectionTimeout = null;
     this.isRetrying = false;
+    this.subscribedTopics = new Set();
     
     this.onOffer = (offer, remotePeerId) => {};
     this.onAnswer = (answer, remotePeerId) => {};
@@ -145,6 +146,7 @@ export class MqttSignaler {
    * @param {string} topic
    */
   subscribe(topic) {
+    this.subscribedTopics.add(topic);
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
     
     const topicBytes = new TextEncoder().encode(topic);
@@ -214,6 +216,16 @@ export class MqttSignaler {
       if (returnCode === 0) {
         this.isConnected = true;
         this.onLog("MQTT Connection accepted.");
+        for (const topic of this.subscribedTopics) {
+          const topicBytes = new TextEncoder().encode(topic);
+          const topicLen = [topicBytes.length >> 8, topicBytes.length & 0xFF];
+          const packetId = [0, 1];
+          const varHeader = [...packetId];
+          const payload = [...topicLen, ...topicBytes, 0];
+          const remLen = varHeader.length + payload.length;
+          const packet = new Uint8Array([0x82, remLen, ...varHeader, ...payload]);
+          this.ws.send(packet.buffer);
+        }
         this.onConnect();
       } else {
         this.onError(new Error(`MQTT Connection refused: code ${returnCode}`));

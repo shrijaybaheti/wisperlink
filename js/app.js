@@ -319,8 +319,15 @@ async function generateInvite() {
     logToConsole("Encrypting connection offer parameters...");
     const encryptedOffer = await crypto.encryptWithHexKey(shareableCode, keyHex);
     
-    // Generate Invite URL with encrypted offer and key in hash
-    const inviteUrl = `${window.location.origin}${window.location.pathname}?room=${roomIdHex}&invite=${encodeURIComponent(encryptedOffer)}#${keyHex}`;
+    // Setup automatic WebSocket MQTT signaling
+    logToConsole("Initializing automatic signaling relay...");
+    elements.hostSignalingStatus.style.display = "flex";
+    
+    const hostPeerIdHex = generateRandomHex(20);
+    state.signaler = new MqttSignaler(null, roomIdHex, hostPeerIdHex);
+    
+    const brokerParam = encodeURIComponent(state.signaler.brokerUrl);
+    const inviteUrl = `${window.location.origin}${window.location.pathname}?room=${roomIdHex}&b=${brokerParam}&invite=${encodeURIComponent(encryptedOffer)}#${keyHex}`;
     
     elements.hostLocalCode.innerText = inviteUrl;
     elements.btnHostCopyInvite.disabled = false;
@@ -329,13 +336,6 @@ async function generateInvite() {
     renderQrCode(elements.hostQrContainer, inviteUrl);
     
     logToConsole(`Invite link generated [${peerId}]. QR Code set to URL.`);
-    
-    // Setup automatic WebSocket MQTT signaling
-    logToConsole("Initializing automatic signaling relay...");
-    elements.hostSignalingStatus.style.display = "flex";
-    
-    const hostPeerIdHex = generateRandomHex(20);
-    state.signaler = new MqttSignaler(null, roomIdHex, hostPeerIdHex);
     
     state.signaler.onLog = (msg) => logToConsole(`[Signaler] ${msg}`);
     
@@ -453,7 +453,7 @@ async function handleJoinerProcess() {
       state.localKeyPair = await crypto.generateKeyPair();
     }
     
-    let invitePayload = rawInput;
+    let autoBroker = parsedUrl.searchParams.get('b') || null;
     let autoRoom = roomParam;
     let autoHash = hashKey;
     
@@ -462,12 +462,16 @@ async function handleJoinerProcess() {
         const parsedUrl = new URL(rawInput);
         const urlInvite = parsedUrl.searchParams.get('invite');
         const urlRoom = parsedUrl.searchParams.get('room');
+        const urlBroker = parsedUrl.searchParams.get('b');
         const urlHash = parsedUrl.hash ? parsedUrl.hash.substring(1) : null;
         if (urlInvite) {
           invitePayload = urlInvite;
         }
         if (urlRoom) {
           autoRoom = urlRoom;
+        }
+        if (urlBroker) {
+          autoBroker = urlBroker;
         }
         if (urlHash) {
           autoHash = urlHash;
@@ -531,7 +535,7 @@ async function handleJoinerProcess() {
       elements.joinerSignalingStatus.style.display = "flex";
       
       const guestPeerIdHex = Array.from(window.crypto.getRandomValues(new Uint8Array(20)), b => b.toString(16).padStart(2, '0')).join('');
-      state.signaler = new MqttSignaler(null, autoRoom, guestPeerIdHex);
+      state.signaler = new MqttSignaler(autoBroker, autoRoom, guestPeerIdHex);
       state.signaler.onLog = (msg) => logToConsole(`[Signaler] ${msg}`);
       
       state.roomKeyHex = autoHash;
@@ -557,6 +561,17 @@ async function handleJoinerProcess() {
           name: state.nickname
         };
         sendRelayPacket(relayHandshake);
+        if (state.handshakeIntervalId) {
+          clearInterval(state.handshakeIntervalId);
+        }
+        state.handshakeIntervalId = setInterval(() => {
+          if (state.peers.length === 0 || !state.peers.some(p => p.sharedKey || p.isRelay)) {
+            sendRelayPacket(relayHandshake);
+          } else {
+            clearInterval(state.handshakeIntervalId);
+            state.handshakeIntervalId = null;
+          }
+        }, 2000);
       };
 
       state.signaler.onRelayMessage = async (encryptedRelayPayload, remotePeerId) => {
@@ -602,6 +617,10 @@ function cleanupSignaling() {
   if (state.answerIntervalId) {
     clearInterval(state.answerIntervalId);
     state.answerIntervalId = null;
+  }
+  if (state.handshakeIntervalId) {
+    clearInterval(state.handshakeIntervalId);
+    state.handshakeIntervalId = null;
   }
   if (state.signalingTimeoutId) {
     clearTimeout(state.signalingTimeoutId);
