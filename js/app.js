@@ -182,10 +182,12 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.btnHostStart.classList.remove('orange');
     
     if (roomParam && hashKey) {
-      logToConsole("Detected automatic signaling parameters.");
+      logToConsole("Detected automatic signaling parameters. Joining automatically...");
+      showToast("Joining chat session...", "info");
+      startSetup(false);
+    } else {
+      showToast("Invite link detected in URL!", "info");
     }
-    
-    showToast("Invite link detected in URL!", "info");
   }
 });
 
