@@ -1,7 +1,8 @@
-/* Hallmark · shape: app screen · genre: modern-minimal · theme: Console (by request)
+/* Hallmark · shape: app screen · genre: modern-minimal · theme: Liquid Glass (by request)
  * nav: sidebar shell · signature: encrypted p2p messaging timeline with verified peer grid · states: offline, gathering, connecting, secure
- * axes: dark/grotesk-sans/chromatic-amber · posture: restrained · contrast: pass · v2.0.0 */
-/* Hallmark · pre-emit critique: P5 H5 E5 S5 R5 V5 · weakest: S, refined WhatsApp/Telegram responsive layout and micro-interactions */
+ * axes: dark/grotesk-sans/chromatic-purple · posture: restrained · contrast: pass · v2.0.0 */
+/* Hallmark · pre-emit critique: P5 H5 E5 S5 R5 V5 · weakest: S, liquid glass frosted translucency */
+/* hallmark:waive 2a:user-requested indigo-purple-pink gradient */
 @import url("./tokens.css");
 @import url("./base.css");
 @import url("https://fonts.googleapis.com/css2?family=Host+Grotesk:wght@400;500;600&family=Atkinson+Hyperlegible+Mono:wght@400;500&display=swap");
@@ -11,11 +12,7 @@
   width: 100%;
   height: 100vh;
   background-color: var(--color-paper);
-  background-image: 
-    radial-gradient(at 0% 0%, var(--color-liquid-glow-1) 0px, transparent 50%),
-    radial-gradient(at 100% 0%, var(--color-liquid-glow-2) 0px, transparent 50%),
-    radial-gradient(at 100% 100%, var(--color-liquid-glow-3) 0px, transparent 50%),
-    radial-gradient(at 0% 100%, var(--color-liquid-glow-4) 0px, transparent 50%);
+  background: linear-gradient(135deg, var(--color-liquid-glow-1) 0%, var(--color-liquid-glow-2) 50%, var(--color-liquid-glow-3) 100%);
   color: var(--color-ink);
   display: flex;
   flex-direction: row;
@@ -30,11 +27,7 @@
   width: 100%;
   height: 100%;
   background-color: var(--color-paper);
-  background-image: 
-    radial-gradient(at 0% 0%, var(--color-liquid-glow-1) 0px, transparent 50%),
-    radial-gradient(at 100% 0%, var(--color-liquid-glow-2) 0px, transparent 50%),
-    radial-gradient(at 100% 100%, var(--color-liquid-glow-3) 0px, transparent 50%),
-    radial-gradient(at 0% 100%, var(--color-liquid-glow-4) 0px, transparent 50%);
+  background: linear-gradient(135deg, var(--color-liquid-glow-1) 0%, var(--color-liquid-glow-2) 50%, var(--color-liquid-glow-3) 100%);
   z-index: var(--z-modal);
   display: flex;
   flex-direction: column;
@@ -82,10 +75,10 @@
 
 .landing-card {
   width: 100%;
-  max-width: 420px;
+  max-width: 400px;
   background: var(--color-paper-2);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   color: var(--color-ink);
   border: var(--rule-hair) solid var(--color-rule);
   border-radius: var(--radius-card);
