@@ -704,6 +704,7 @@ function setupPeerCallbacks(peerObj) {
         peerObj.sharedKey = sharedKey;
         peerObj.nickname = payload.name || 'Anonymous Peer';
         
+        state.peers = state.peers.filter(p => !p.isRelay);
         if (state.isHost) {
           if (state.pendingHostPeer && state.pendingHostPeer.id === peerObj.id) {
             state.peers.push(peerObj);
@@ -716,13 +717,12 @@ function setupPeerCallbacks(peerObj) {
           
           broadcastMemberList();
         } else {
-          // Guest: Connection is fully active now
           state.peers = [peerObj];
         }
         
         refreshMembersUI();
         
-        addSystemInfo(`🔒 Link secured with ${peerObj.nickname}`);
+        addSystemInfo(`🔒 Direct P2P link secured with ${peerObj.nickname}`);
         showToast(`Connected with ${peerObj.nickname}`, "info");
         
       } else if (payload.type === 'message') {
@@ -849,6 +849,10 @@ async function handleIncomingRelayMessage(encryptedPayload, senderPeerId) {
 
     if (packet.type === 'relay-handshake') {
       logToConsole(`Encrypted relay link detected with "${packet.name}".`);
+      const hasDirectP2P = state.peers.some(p => !p.isRelay && p.nickname === packet.name);
+      if (hasDirectP2P) {
+        return;
+      }
       let existing = state.peers.find(p => p.id === senderPeerId);
       if (!existing) {
         const dummyManager = {

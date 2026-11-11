@@ -3,14 +3,27 @@
  * Handles serverless WebRTC signaling using a public, zero-auth MQTT broker.
  */
 
+const DEFAULT_BROKERS = [
+  "wss://broker.hivemq.com:8884/mqtt",
+  "wss://broker.emqx.io:8084/mqtt"
+];
+
 export class MqttSignaler {
   /**
-   * @param {string} brokerUrl
+   * @param {string|string[]} brokerUrls
    * @param {string} infoHash Room identifier
    * @param {string} peerId Client peer identifier
    */
-  constructor(brokerUrl, infoHash, peerId) {
-    this.brokerUrl = brokerUrl || "wss://broker.hivemq.com:8884/mqtt";
+  constructor(brokerUrls, infoHash, peerId) {
+    if (Array.isArray(brokerUrls)) {
+      this.brokerUrls = brokerUrls;
+    } else if (brokerUrls) {
+      this.brokerUrls = [brokerUrls, ...DEFAULT_BROKERS.filter(b => b !== brokerUrls)];
+    } else {
+      this.brokerUrls = [...DEFAULT_BROKERS];
+    }
+    this.currentBrokerIndex = 0;
+    this.brokerUrl = this.brokerUrls[0];
     this.infoHash = infoHash;
     this.peerId = peerId;
     this.ws = null;
@@ -33,19 +46,19 @@ export class MqttSignaler {
    * Establishes the WebSocket connection and negotiates the MQTT subprotocol.
    */
   connect() {
+    this.brokerUrl = this.brokerUrls[this.currentBrokerIndex];
     this.onLog(`Connecting to MQTT broker: ${this.brokerUrl}`);
     
     try {
-      // Connect using the standard 'mqtt' WebSocket subprotocol
       const ws = new WebSocket(this.brokerUrl, 'mqtt');
       this.ws = ws;
       ws.binaryType = 'arraybuffer';
       
       const connectionTimeout = setTimeout(() => {
         if (ws.readyState !== WebSocket.OPEN || !this.isConnected) {
-          this.onLog("Broker connection timed out.");
-          this.onError(new Error("Connection to signaling broker timed out."));
+          this.onLog(`Broker connection timed out on ${this.brokerUrl}`);
           ws.close();
+          this.tryNextBroker();
         }
       }, 5000);
       
@@ -62,17 +75,31 @@ export class MqttSignaler {
       
       ws.onerror = (err) => {
         clearTimeout(connectionTimeout);
-        this.onLog(`WebSocket error: ${err.message || "Disconnected"}`);
+        this.onLog(`WebSocket error on ${this.brokerUrl}: ${err.message || "Disconnected"}`);
       };
       
       ws.onclose = () => {
         clearTimeout(connectionTimeout);
         this.onLog("WebSocket signaling connection closed.");
+        const wasConnected = this.isConnected;
         this.isConnected = false;
+        if (!wasConnected) {
+          this.tryNextBroker();
+        }
       };
     } catch (err) {
       this.onLog(`WebSocket creation failed: ${err.message}`);
-      this.onError(err);
+      this.tryNextBroker();
+    }
+  }
+
+  tryNextBroker() {
+    if (this.currentBrokerIndex + 1 < this.brokerUrls.length) {
+      this.currentBrokerIndex++;
+      this.onLog(`Retrying with backup signaling broker: ${this.brokerUrls[this.currentBrokerIndex]}`);
+      setTimeout(() => this.connect(), 300);
+    } else {
+      this.onError(new Error("All signaling brokers failed."));
     }
   }
 
