@@ -892,7 +892,7 @@ async function relayMessage(senderId, senderName, text, msgId) {
     type: 'message',
     msgId: msgId,
     sender: senderName,
-    originSenderId: senderId,
+    originSenderId: null,
     text: text
   });
 }
@@ -1123,30 +1123,27 @@ async function sendMessage() {
   }
 
   try {
-    let sentViaRelay = false;
     for (const peer of state.peers) {
-      if (peer.isRelay) {
-        if (!sentViaRelay) {
-          await sendRelayPacket({
+      if (!peer.isRelay && peer.sharedKey) {
+        try {
+          const ciphertext = await crypto.encrypt(peer.sharedKey, text);
+          const payload = {
             type: 'message',
             msgId: msgId,
             sender: state.nickname,
-            originSenderId: state.signaler ? state.signaler.peerId : null,
-            text: text
-          });
-          sentViaRelay = true;
-        }
-      } else if (peer.sharedKey) {
-        const ciphertext = await crypto.encrypt(peer.sharedKey, text);
-        const payload = {
-          type: 'message',
-          msgId: msgId,
-          sender: state.nickname,
-          ciphertext: ciphertext
-        };
-        peer.peerManager.send(JSON.stringify(payload));
+            ciphertext: ciphertext
+          };
+          peer.peerManager.send(JSON.stringify(payload));
+        } catch (err) {}
       }
     }
+    await sendRelayPacket({
+      type: 'message',
+      msgId: msgId,
+      sender: state.nickname,
+      originSenderId: state.signaler ? state.signaler.peerId : null,
+      text: text
+    });
     addMessage(text, state.nickname, true);
     elements.inputMessage.value = '';
   } catch (err) {
