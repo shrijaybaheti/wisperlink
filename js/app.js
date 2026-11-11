@@ -332,7 +332,7 @@ async function generateInvite() {
     elements.hostSignalingStatus.style.display = "flex";
     
     const hostPeerIdHex = generateRandomHex(20);
-    state.signaler = new MqttSignaler("wss://broker.hivemq.com:8884/mqtt", roomIdHex, hostPeerIdHex);
+    state.signaler = new MqttSignaler(null, roomIdHex, hostPeerIdHex);
     
     state.signaler.onLog = (msg) => logToConsole(`[Signaler] ${msg}`);
     
@@ -528,7 +528,7 @@ async function handleJoinerProcess() {
       elements.joinerSignalingStatus.style.display = "flex";
       
       const guestPeerIdHex = Array.from(window.crypto.getRandomValues(new Uint8Array(20)), b => b.toString(16).padStart(2, '0')).join('');
-      state.signaler = new MqttSignaler("wss://broker.hivemq.com:8884/mqtt", autoRoom, guestPeerIdHex);
+      state.signaler = new MqttSignaler(null, autoRoom, guestPeerIdHex);
       state.signaler.onLog = (msg) => logToConsole(`[Signaler] ${msg}`);
       
       state.roomKeyHex = autoHash;
@@ -722,8 +722,10 @@ function setupPeerCallbacks(peerObj) {
         
         refreshMembersUI();
         
-        addSystemInfo(`🔒 Direct P2P link secured with ${peerObj.nickname}`);
-        showToast(`Connected with ${peerObj.nickname}`, "info");
+        if (!state.peers.some(p => p.nickname === peerObj.nickname)) {
+          addSystemInfo(`🔒 Link secured with ${peerObj.nickname}`);
+          showToast(`Connected with ${peerObj.nickname}`, "info");
+        }
         
       } else if (payload.type === 'message') {
         if (!peerObj.sharedKey) {
@@ -878,8 +880,10 @@ async function handleIncomingRelayMessage(encryptedPayload, senderPeerId) {
         elements.chatRoomName.innerText = `Grid Session (${state.peers.length} active)`;
         elements.hostSignalingStatus.style.display = "none";
         elements.joinerSignalingStatus.style.display = "none";
-        addSystemInfo(`🔒 Encrypted mobile relay link secured with ${relayPeer.nickname}`);
-        showToast(`Connected with ${relayPeer.nickname}`, "info");
+        if (!state.peers.some(p => p.nickname === relayPeer.nickname)) {
+          addSystemInfo(`🔒 Link secured with ${relayPeer.nickname}`);
+          showToast(`Connected with ${relayPeer.nickname}`, "info");
+        }
 
         if (state.isHost) {
           sendRelayPacket({
@@ -915,8 +919,10 @@ async function handleIncomingRelayMessage(encryptedPayload, senderPeerId) {
         elements.chatRoomName.innerText = `Grid Session (1 active)`;
         elements.hostSignalingStatus.style.display = "none";
         elements.joinerSignalingStatus.style.display = "none";
-        addSystemInfo(`🔒 Encrypted mobile relay link secured with ${relayPeer.nickname}`);
-        showToast(`Connected with ${relayPeer.nickname}`, "info");
+        if (!state.peers.some(p => p.nickname === relayPeer.nickname)) {
+          addSystemInfo(`🔒 Link secured with ${relayPeer.nickname}`);
+          showToast(`Connected with ${relayPeer.nickname}`, "info");
+        }
       }
     } else if (packet.type === 'message') {
       const senderName = packet.sender || 'Peer';
