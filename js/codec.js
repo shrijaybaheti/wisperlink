@@ -107,14 +107,6 @@ function parseSdp(sdp) {
     } else if (line.startsWith('a=candidate:')) {
       const parts = line.split(' ');
       if (parts.length >= 8) {
-        // Essential candidate parameters:
-        // parts[0]: a=candidate:<foundation>
-        // parts[1]: <component-id>
-        // parts[2]: <transport>
-        // parts[3]: <priority>
-        // parts[4]: <connection-address>
-        // parts[5]: <port>
-        // parts[7]: <candidate-type>
         const foundation = parts[0].split(':')[1];
         const componentId = parts[1];
         const transport = parts[2];
@@ -123,6 +115,16 @@ function parseSdp(sdp) {
         const port = parts[5];
         const type = parts[7];
         
+        let raddr = '';
+        let rport = '';
+        for (let i = 8; i < parts.length; i += 2) {
+          if (parts[i] === 'raddr' && parts[i + 1]) {
+            raddr = parts[i + 1];
+          } else if (parts[i] === 'rport' && parts[i + 1]) {
+            rport = parts[i + 1];
+          }
+        }
+        
         candidates.push([
           foundation,
           componentId,
@@ -130,7 +132,9 @@ function parseSdp(sdp) {
           priority,
           address,
           port,
-          type
+          type,
+          raddr,
+          rport
         ]);
       }
     }
@@ -173,8 +177,12 @@ function reconstructSdp(type, parsed) {
 
   // Append reconstructed candidate lines
   parsed.c.forEach(cand => {
-    const [foundation, componentId, transport, priority, address, port, type] = cand;
-    sdpLines.push(`a=candidate:${foundation} ${componentId} ${transport} ${priority} ${address} ${port} typ ${type}`);
+    const [foundation, componentId, transport, priority, address, port, type, raddr, rport] = cand;
+    let candLine = `a=candidate:${foundation} ${componentId} ${transport} ${priority} ${address} ${port} typ ${type}`;
+    if (raddr && rport) {
+      candLine += ` raddr ${raddr} rport ${rport}`;
+    }
+    sdpLines.push(candLine);
   });
 
   // End with trailing empty lines as per SDP specs

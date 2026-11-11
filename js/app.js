@@ -26,7 +26,9 @@ import { MqttSignaler } from './signaling.js';
 const iceConfig = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' }
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:global.stun.twilio.com:3478' }
   ]
 };
 
@@ -347,7 +349,6 @@ async function generateInvite() {
         await state.pendingHostPeer.peerManager.acceptAnswer(answerDesc);
         
         elements.hostSignalingStatus.style.display = "none";
-        cleanupSignaling();
       } catch (err) {
         logToConsole(`Failed to process auto-signaled answer: ${err.message}`);
       }
